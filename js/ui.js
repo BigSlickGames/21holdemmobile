@@ -312,7 +312,8 @@ export const createAppUi = (engine) => {
   };
 
   const getWinnerVoiceLine = (state) => {
-    const totalsSummary = state.players
+    const finalists = state.players.filter((player) => !player.folded);
+    const totalsSummary = finalists
       .map((player) => {
         if (player.total > 21) {
           return `${player.name} bust ${player.total}`;
@@ -322,9 +323,11 @@ export const createAppUi = (engine) => {
       .join(", ");
 
     if (!winnerIds.length) {
-      return `No winner this hand. Totals: ${totalsSummary}.`;
+      return totalsSummary
+        ? `No winner this hand. Totals: ${totalsSummary}.`
+        : "No winner this hand.";
     }
-    const winnerNames = state.players
+    const winnerNames = finalists
       .filter((player) => winnerIds.includes(player.id))
       .map((player) => player.name.toUpperCase());
     if (winnerNames.length === 1) {

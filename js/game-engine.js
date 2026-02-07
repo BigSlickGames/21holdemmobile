@@ -170,6 +170,13 @@ export class Holdem21Engine {
   }
 
   getCardsForPlayer(player) {
+    if (player.folded) {
+      const foldedCommunityCount =
+        player.lockedCommunityCount === null
+          ? 0
+          : Math.min(player.lockedCommunityCount, this.community.length);
+      return [...player.hand, ...this.community.slice(0, foldedCommunityCount)];
+    }
     const communityCount =
       player.lockedCommunityCount === null
         ? this.community.length
@@ -470,6 +477,7 @@ export class Holdem21Engine {
 
     if (action === "fold") {
       player.folded = true;
+      player.lockedCommunityCount = this.community.length;
       player.hasActed = true;
       player.lastAction = "Fold";
       this.logEvent(`${player.name} folds.`);
