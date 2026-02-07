@@ -31,6 +31,9 @@ const actionOrder = {
 const BOT_TURN_DELAY_MS = 3000;
 const ACTION_LABEL_DURATION_MS = 3000;
 const WINNER_REVEAL_DELAY_MS = 3000;
+const SPEECH_RATE = 1;
+const SPEECH_PITCH = 1;
+const SPEECH_VOLUME = 1;
 
 export const createAppUi = (engine) => {
   const splashScreen = document.querySelector("#splashScreen");
@@ -61,7 +64,9 @@ export const createAppUi = (engine) => {
   const roundBadge = document.querySelector("#roundBadge");
   const potBadge = document.querySelector("#potBadge");
   const betBadge = document.querySelector("#betBadge");
+  const tableFelt = document.querySelector(".table-felt");
   const communityCards = document.querySelector("#communityCards");
+  const chipLayer = document.querySelector("#chipLayer");
   const playerLayer = document.querySelector("#playerLayer");
   const turnPrompt = document.querySelector("#turnPrompt");
   const actionButtons = document.querySelector("#actionButtons");
@@ -85,6 +90,21 @@ export const createAppUi = (engine) => {
   let winnerRevealHandNumber = null;
   let winnerIds = [];
   let winnerAnnouncement = "";
+  let lastRenderedHandNumber = null;
+  let lastRenderedPot = 0;
+  let lastPayoutAnimationHand = null;
+  let drainedPotHandNumber = null;
+  let lastSpokenWinnerHand = null;
+  let lastSpokenRoundKey = "";
+  const speechSupported =
+    typeof window !== "undefined" &&
+    "speechSynthesis" in window &&
+    typeof window.SpeechSynthesisUtterance !== "undefined";
+  const synth = speechSupported ? window.speechSynthesis : null;
+  let speechUnlocked = false;
+  let speechVoice = null;
+  let speechIsRunning = false;
+  const speechQueue = [];
 
   const getTutorialSlides = () =>
     tutorialScreens.filter((screen) => screen.module === activeTutorialModule);
@@ -104,6 +124,348 @@ export const createAppUi = (engine) => {
     pendingDecision = null;
   };
 
+  const normalizeSpeechLine = (line) => String(line || "").replace(/\s+/g, " ").trim();
+
+  const pickSpeechVoice = () => {
+    if (!speechSupported || !synth) {
+      return;
+    }
+    const voices = synth.getVoices();
+    if (!voices.length) {
+      return;
+    }
+    speechVoice =
+      voices.find(
+        (voice) =>
+          /^en(-|_)?US/i.test(voice.lang) && /(aria|jenny|zira|samantha|google)/i.test(voice.name)
+      ) ||
+      voices.find((voice) => /^en/i.test(voice.lang)) ||
+      voices[0];
+  };
+
+  const speakNextQueuedLine = () => {
+    if (!speechSupported || !synth || !speechUnlocked || speechIsRunning) {
+      return;
+    }
+    const nextLine = speechQueue.shift();
+    if (!nextLine) {
+      return;
+    }
+    speechIsRunning = true;
+    const utterance = new SpeechSynthesisUtterance(nextLine);
+    if (speechVoice) {
+      utterance.voice = speechVoice;
+    }
+    utterance.rate = SPEECH_RATE;
+    utterance.pitch = SPEECH_PITCH;
+    utterance.volume = SPEECH_VOLUME;
+    utterance.onend = () => {
+      speechIsRunning = false;
+      speakNextQueuedLine();
+    };
+    utterance.onerror = () => {
+      speechIsRunning = false;
+      speakNextQueuedLine();
+    };
+    synth.speak(utterance);
+  };
+
+  const queueSpeechLine = (line, priority = false) => {
+    const cleaned = normalizeSpeechLine(line);
+    if (!speechSupported || !cleaned) {
+      return;
+    }
+    if (priority) {
+      speechQueue.unshift(cleaned);
+    } else if (speechQueue[speechQueue.length - 1] !== cleaned) {
+      speechQueue.push(cleaned);
+    }
+    speakNextQueuedLine();
+  };
+
+  const clearSpeechQueue = () => {
+    speechQueue.length = 0;
+    if (speechSupported && synth) {
+      synth.cancel();
+    }
+    speechIsRunning = false;
+  };
+
+  const unlockSpeech = () => {
+    speechUnlocked = true;
+    window.removeEventListener("pointerdown", unlockSpeech);
+    window.removeEventListener("keydown", unlockSpeech);
+    pickSpeechVoice();
+    speakNextQueuedLine();
+  };
+
+  const getActionAmount = (actionText) => {
+    const match = String(actionText).match(/(\d+)/);
+    return match ? match[1] : null;
+  };
+
+  const getActionVoiceLine = (playerName, actionText) => {
+    const action = String(actionText || "").trim();
+    const actionLower = action.toLowerCase();
+    const amount = getActionAmount(action);
+
+    if (!action || actionLower === "waiting" || actionLower === "winner") {
+      return "";
+    }
+    if (/^sb\s+\d+/i.test(action) && amount) {
+      return `${playerName} posts small blind ${amount}.`;
+    }
+    if (/^bb\s+\d+/i.test(action) && amount) {
+      return `${playerName} posts big blind ${amount}.`;
+    }
+    if (/^fold$/i.test(action)) {
+      return `${playerName} folds.`;
+    }
+    if (/^check$/i.test(action)) {
+      return `${playerName} checks.`;
+    }
+    if (/^call\s+\d+/i.test(action) && amount) {
+      return actionLower.includes("all-in")
+        ? `${playerName} calls ${amount}, all in.`
+        : `${playerName} calls ${amount}.`;
+    }
+    if (/^bet\s+\d+/i.test(action) && amount) {
+      return `${playerName} bets ${amount}.`;
+    }
+    if (/^raise\s+\d+/i.test(action) && amount) {
+      return `${playerName} raises ${amount}.`;
+    }
+    if (/^double\s+\d+/i.test(action) && amount) {
+      return `${playerName} doubles down for ${amount}.`;
+    }
+    if (/^bust\s+\(\d+\)/i.test(action) && amount) {
+      return `${playerName} busts with ${amount}.`;
+    }
+    if (/^stand\s+\(\d+\)/i.test(action) && amount) {
+      return `${playerName} stands on ${amount}.`;
+    }
+    if (/\+\s*stand/i.test(action)) {
+      const detail = action.match(/(call|bet|raise)\s+(\d+)/i);
+      if (detail) {
+        const verb = detail[1].toLowerCase() === "raise" ? "raises" : `${detail[1].toLowerCase()}s`;
+        return `${playerName} ${verb} ${detail[2]} and stands.`;
+      }
+      return `${playerName} stands.`;
+    }
+    return `${playerName} ${action}.`;
+  };
+
+  const getWinnerVoiceLine = (state) => {
+    const totalsSummary = state.players
+      .map((player) => {
+        if (player.total > 21) {
+          return `${player.name} bust ${player.total}`;
+        }
+        return `${player.name} ${player.total}`;
+      })
+      .join(", ");
+
+    if (!winnerIds.length) {
+      return `No winner this hand. Totals: ${totalsSummary}.`;
+    }
+    const winnerNames = state.players
+      .filter((player) => winnerIds.includes(player.id))
+      .map((player) => player.name.toUpperCase());
+    if (winnerNames.length === 1) {
+      return `${winnerNames[0]} wins. Totals: ${totalsSummary}.`;
+    }
+    return `${winnerNames.join(" and ")} split the pot. Totals: ${totalsSummary}.`;
+  };
+
+  const clearChipLayer = () => {
+    if (!chipLayer) {
+      return;
+    }
+    chipLayer.innerHTML = "";
+  };
+
+  const ensurePotChipStack = () => {
+    if (!chipLayer) {
+      return null;
+    }
+    let stack = chipLayer.querySelector(".pot-chip-stack");
+    if (!stack) {
+      stack = document.createElement("div");
+      stack.className = "pot-chip-stack";
+      chipLayer.appendChild(stack);
+    }
+    return stack;
+  };
+
+  const renderPotChipStack = (potAmount) => {
+    if (!chipLayer) {
+      return;
+    }
+    const stack = ensurePotChipStack();
+    if (!stack) {
+      return;
+    }
+    const potPoint = getPotPoint();
+    if (potPoint) {
+      stack.style.left = `${potPoint.x}px`;
+      stack.style.top = `${potPoint.y}px`;
+    }
+    const count = Math.max(0, Math.min(26, Math.round(Math.sqrt(Math.max(0, potAmount)))));
+    stack.classList.toggle("active", count > 0);
+    if (count === 0) {
+      stack.innerHTML = "";
+      return;
+    }
+    if (stack.childElementCount === count) {
+      return;
+    }
+    stack.innerHTML = "";
+    for (let index = 0; index < count; index += 1) {
+      const chip = document.createElement("span");
+      chip.className = "pot-chip";
+      chip.style.setProperty("--stack-x", `${(index % 6) * 4 - 10}px`);
+      chip.style.setProperty("--stack-y", `${Math.floor(index / 6) * -3}px`);
+      chip.style.setProperty("--stack-r", `${(index % 5) * 3 - 6}deg`);
+      stack.appendChild(chip);
+    }
+  };
+
+  const getPointOnChipLayer = (element) => {
+    if (!chipLayer || !element) {
+      return null;
+    }
+    const layerRect = chipLayer.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2 - layerRect.left,
+      y: rect.top + rect.height / 2 - layerRect.top,
+    };
+  };
+
+  const getSeatPoint = (playerId) => {
+    if (!chipLayer || !playerLayer) {
+      return null;
+    }
+    const seat = playerLayer.querySelector(`.${seatClassByPlayer[playerId]}`);
+    if (!seat) {
+      return null;
+    }
+    const shell = seat.querySelector(".profile-shell") || seat;
+    return getPointOnChipLayer(shell);
+  };
+
+  const getPotPoint = () => {
+    if (!chipLayer) {
+      return null;
+    }
+    if (tableFelt) {
+      return getPointOnChipLayer(tableFelt);
+    }
+    return {
+      x: chipLayer.clientWidth / 2,
+      y: chipLayer.clientHeight / 2,
+    };
+  };
+
+  const getChipCountForAmount = (amount) => {
+    const safeAmount = Math.max(1, Number(amount) || 1);
+    return Math.max(3, Math.min(14, Math.round(Math.sqrt(safeAmount))));
+  };
+
+  const spawnChipBurst = (fromPoint, toPoint, amount, variant = "to-pot") => {
+    if (!chipLayer || !fromPoint || !toPoint || amount <= 0) {
+      return;
+    }
+    const chipCount = getChipCountForAmount(amount);
+    for (let index = 0; index < chipCount; index += 1) {
+      const chip = document.createElement("span");
+      chip.className = `chip-token ${variant === "to-winner" ? "to-winner" : "to-pot"}`;
+      const jitterX = (Math.random() - 0.5) * 18;
+      const jitterY = (Math.random() - 0.5) * 12;
+      const deltaX = toPoint.x - fromPoint.x + jitterX;
+      const deltaY = toPoint.y - fromPoint.y + jitterY;
+      chip.style.left = `${fromPoint.x}px`;
+      chip.style.top = `${fromPoint.y}px`;
+      chip.style.setProperty("--chip-dx", `${deltaX}px`);
+      chip.style.setProperty("--chip-dy", `${deltaY}px`);
+      chip.style.setProperty("--chip-dx-half", `${deltaX * 0.56}px`);
+      chip.style.setProperty("--chip-dy-half", `${deltaY * 0.56}px`);
+      chip.style.animationDelay = `${index * 44}ms`;
+      chip.style.animationDuration = variant === "to-winner" ? "760ms" : "560ms";
+      chip.addEventListener("animationend", () => {
+        chip.remove();
+      });
+      chipLayer.appendChild(chip);
+    }
+  };
+
+  const getContributionFromAction = (actionText) => {
+    const match = String(actionText || "").match(/(?:SB|BB|Call|Bet|Raise|Double)\s+(\d+)/i);
+    return match ? Math.max(0, Number(match[1]) || 0) : 0;
+  };
+
+  const animatePotIncreaseFromChanges = (changes, potDelta) => {
+    if (!chipLayer || !changes.length || potDelta <= 0) {
+      return;
+    }
+    const potPoint = getPotPoint();
+    if (!potPoint) {
+      return;
+    }
+
+    const contributors = changes
+      .map((change) => ({
+        playerId: change.player.id,
+        amount: getContributionFromAction(change.action),
+      }))
+      .filter((entry) => entry.amount > 0);
+
+    if (!contributors.length) {
+      const fallback = changes[0];
+      if (!fallback) {
+        return;
+      }
+      const seatPoint = getSeatPoint(fallback.player.id);
+      if (seatPoint) {
+        spawnChipBurst(seatPoint, potPoint, potDelta, "to-pot");
+      }
+      return;
+    }
+
+    const knownTotal = contributors.reduce((sum, entry) => sum + entry.amount, 0);
+    let remaining = Math.max(0, potDelta - knownTotal);
+    contributors.forEach((entry, index) => {
+      const seatPoint = getSeatPoint(entry.playerId);
+      if (!seatPoint) {
+        return;
+      }
+      const extra = remaining > 0 && index === 0 ? remaining : 0;
+      remaining -= extra;
+      spawnChipBurst(seatPoint, potPoint, entry.amount + extra, "to-pot");
+    });
+  };
+
+  const animatePotToWinners = (state) => {
+    if (!chipLayer || !winnerIds.length || state.pot <= 0) {
+      return;
+    }
+    const potPoint = getPotPoint();
+    if (!potPoint) {
+      return;
+    }
+    const payoutEach = Math.max(1, Math.floor(state.pot / winnerIds.length));
+    winnerIds.forEach((playerId, index) => {
+      const seatPoint = getSeatPoint(playerId);
+      if (!seatPoint) {
+        return;
+      }
+      window.setTimeout(() => {
+        spawnChipBurst(potPoint, seatPoint, payoutEach, "to-winner");
+      }, index * 150);
+    });
+    drainedPotHandNumber = state.handNumber;
+  };
+
   const clearWinnerReveal = () => {
     if (winnerRevealTimer) {
       window.clearTimeout(winnerRevealTimer);
@@ -113,11 +475,19 @@ export const createAppUi = (engine) => {
     winnerRevealHandNumber = null;
     winnerIds = [];
     winnerAnnouncement = "";
+    lastSpokenWinnerHand = null;
+    lastPayoutAnimationHand = null;
+    drainedPotHandNumber = null;
   };
 
   const startGameFromSetup = () => {
     clearPendingFlow();
     clearWinnerReveal();
+    clearSpeechQueue();
+    lastSpokenRoundKey = "";
+    clearChipLayer();
+    lastRenderedPot = 0;
+    drainedPotHandNumber = null;
     engine.setPlayerName(playerNameInput?.value || "PLAYER");
     engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
     engine.startNewHand();
@@ -353,6 +723,11 @@ export const createAppUi = (engine) => {
     if (winnerIds.length === 0) {
       winnerBanner.classList.add("no-winner");
     }
+
+    if (lastSpokenWinnerHand !== state.handNumber) {
+      lastSpokenWinnerHand = state.handNumber;
+      queueSpeechLine(getWinnerVoiceLine(state), true);
+    }
   };
 
   const renderCommunity = (state) => {
@@ -392,12 +767,17 @@ export const createAppUi = (engine) => {
 
   const renderPlayers = (state) => {
     playerLayer.innerHTML = "";
+    const changes = [];
 
     state.players.forEach((player) => {
       const knownAction = lastKnownActions.get(player.id);
       if (player.lastAction !== knownAction) {
         lastKnownActions.set(player.id, player.lastAction);
-        queueActionBanner(player.id, player.lastAction);
+        changes.push({ player, action: player.lastAction, previous: knownAction || "" });
+        if (gameStarted) {
+          queueActionBanner(player.id, player.lastAction);
+          queueSpeechLine(getActionVoiceLine(player.name, player.lastAction));
+        }
       }
 
       const seat = document.createElement("article");
@@ -469,6 +849,7 @@ export const createAppUi = (engine) => {
       }
       playerLayer.appendChild(seat);
     });
+    return changes;
   };
 
   const createActionButton = (label, onClick, className = "", disabled = false) => {
@@ -687,6 +1068,24 @@ export const createAppUi = (engine) => {
     const state = engine.getVisibleState();
     syncWinnerRevealState(state);
 
+    if (lastRenderedHandNumber !== state.handNumber) {
+      lastRenderedHandNumber = state.handNumber;
+      lastKnownActions.clear();
+      lastSpokenRoundKey = "";
+      lastRenderedPot = 0;
+      lastPayoutAnimationHand = null;
+      drainedPotHandNumber = null;
+      clearChipLayer();
+    }
+
+    if (gameStarted) {
+      const roundKey = `${state.handNumber}-${state.roundIndex}`;
+      if (lastSpokenRoundKey !== roundKey) {
+        lastSpokenRoundKey = roundKey;
+        queueSpeechLine(`${state.roundName} round.`);
+      }
+    }
+
     if (tableTitle) {
       tableTitle.textContent = `21 HOLD'EM ${state.smallBlindAmount}/${state.bigBlindAmount}`;
     }
@@ -694,12 +1093,30 @@ export const createAppUi = (engine) => {
     potBadge.textContent = `Pot ${state.pot}`;
     betBadge.textContent = `Blinds ${state.smallBlindAmount}/${state.bigBlindAmount}`;
 
+    const potDelta = Math.max(0, state.pot - lastRenderedPot);
+
     renderCommunity(state);
-    renderPlayers(state);
+    const actionChanges = renderPlayers(state);
+    renderPotChipStack(drainedPotHandNumber === state.handNumber ? 0 : state.pot);
     renderWinnerBanner(state);
     renderStatusAndActions(state);
     renderLog(state);
     renderTutorial();
+
+    if (gameStarted && !state.handComplete && potDelta > 0) {
+      animatePotIncreaseFromChanges(actionChanges, potDelta);
+    }
+    if (
+      gameStarted &&
+      state.handComplete &&
+      winnerRevealReady &&
+      state.pot > 0 &&
+      lastPayoutAnimationHand !== state.handNumber
+    ) {
+      lastPayoutAnimationHand = state.handNumber;
+      animatePotToWinners(state);
+    }
+    lastRenderedPot = state.pot;
 
     if (botTimer) {
       window.clearTimeout(botTimer);
@@ -742,6 +1159,12 @@ export const createAppUi = (engine) => {
 
   newHandButton.addEventListener("click", () => {
     clearPendingFlow();
+    clearSpeechQueue();
+    lastSpokenRoundKey = "";
+    clearChipLayer();
+    lastRenderedPot = 0;
+    lastPayoutAnimationHand = null;
+    drainedPotHandNumber = null;
     engine.startNewHand();
     render();
   });
@@ -763,6 +1186,14 @@ export const createAppUi = (engine) => {
 
   if (startingStackValue) {
     startingStackValue.textContent = String(STARTING_STACK);
+  }
+  if (speechSupported) {
+    pickSpeechVoice();
+    synth.onvoiceschanged = () => {
+      pickSpeechVoice();
+    };
+    window.addEventListener("pointerdown", unlockSpeech, { passive: true });
+    window.addEventListener("keydown", unlockSpeech);
   }
   renderTableMenu();
   setMenuPanel(activeMenuPanel);

@@ -13,9 +13,9 @@ import {
 } from "./rules.js";
 
 const PLAYER_CONFIG = [
-  { name: "You", isHuman: true },
-  { name: "North Bot", isHuman: false },
-  { name: "East Bot", isHuman: false },
+  { name: "You", isHuman: true, botStyle: null },
+  { name: "North Bot", isHuman: false, botStyle: "conservative" },
+  { name: "East Bot", isHuman: false, botStyle: "aggressive" },
 ];
 
 export class Holdem21Engine {
@@ -27,7 +27,7 @@ export class Holdem21Engine {
     }
 
     this.players = PLAYER_CONFIG.map((config, index) =>
-      this.createPlayer(index, config.name, config.isHuman)
+      this.createPlayer(index, config.name, config.isHuman, config.botStyle)
     );
     this.handNumber = 0;
     this.dealerIndex = -1;
@@ -65,11 +65,12 @@ export class Holdem21Engine {
     return this.bigBlindAmount * MIN_BUYIN_MULTIPLIER;
   }
 
-  createPlayer(id, name, isHuman) {
+  createPlayer(id, name, isHuman, botStyle = null) {
     return {
       id,
       name,
       isHuman,
+      botStyle,
       chips: STARTING_STACK,
       hand: [],
       folded: false,
@@ -580,70 +581,185 @@ export class Holdem21Engine {
     return this.performAction(action, payload, "human");
   }
 
-  decideBotAction(player) {
-    const actions = this.getAvailableActions(player);
-    const toCall = this.getToCall(player);
-    const total = this.getPlayerTotal(player);
+  getOpeningValue(player) {
+    const firstCard = player.hand[0];
+    if (!firstCard) {
+      return 0;
+    }
+    if (firstCard.rank === "A") {
+      return 11;
+    }
+    if (["10", "J", "Q", "K"].includes(firstCard.rank)) {
+      return 10;
+    }
+    return Number(firstCard.rank) || 0;
+  }
 
-    if (actions.includes("double")) {
-      const firstCard = player.hand[0];
-      const openingValue =
-        firstCard && firstCard.rank === "A"
-          ? 11
-          : firstCard && ["10", "J", "Q", "K"].includes(firstCard.rank)
-            ? 10
-            : Number(firstCard?.rank || 0);
-      if (openingValue >= 10 && Math.random() < 0.32) {
-        return { action: "double" };
-      }
+  getBotWagerChoice(action, player, preference = "medium") {
+    const options = this.getWagerOptions(action, player);
+    if (!options.length) {
+      return null;
+    }
+    if (preference === "min") {
+      return options[0];
+    }
+    if (preference === "max") {
+      return options[options.length - 1];
+    }
+    return options[Math.min(options.length - 1, 1)] || options[0];
+  }
+
+  resolveBotStyle(player, pressure) {
+    if (player.chips <= Math.max(this.bigBlindAmount * 15, STARTING_STACK * 0.4)) {
+      return "high-risk";
+    }
+    if (pressure > 0.6 && player.chips > this.bigBlindAmount * 30) {
+      return "conservative";
+    }
+    return player.botStyle || "aggressive";
+  }
+
+  decideConservativeAction(player, actions, toCall, total, pressure) {
+    const openingValue = this.getOpeningValue(player);
+
+    if (actions.includes("double") && openingValue >= 10 && Math.random() < 0.18) {
+      return { action: "double" };
     }
 
     if (toCall > 0) {
-      const pressure = toCall / Math.max(1, this.pot);
+      if (actions.includes("fold") && total <= 12 && pressure > 0.2 && Math.random() < 0.72) {
+        return { action: "fold" };
+      }
+      if (actions.includes("fold") && total <= 15 && pressure > 0.38 && Math.random() < 0.56) {
+        return { action: "fold" };
+      }
+      if (actions.includes("stand") && total >= 19 && Math.random() < 0.7) {
+        return { action: "stand" };
+      }
+      if (actions.includes("call")) {
+        return { action: "call" };
+      }
+      if (actions.includes("check")) {
+        return { action: "check" };
+      }
+      return { action: actions[0] || "check" };
+    }
 
-      if (actions.includes("raise") && total >= 18 && Math.random() < 0.18) {
-        const options = this.getWagerOptions("raise", player);
-        const choice = options[0];
+    if (actions.includes("stand") && total >= 18 && Math.random() < 0.76) {
+      return { action: "stand" };
+    }
+
+    if (actions.includes("bet") && total >= 16 && Math.random() < 0.34) {
+      const choice = this.getBotWagerChoice("bet", player, total >= 19 ? "medium" : "min");
+      if (choice) {
+        return { action: "bet", amount: choice.amount };
+      }
+    }
+
+    if (actions.includes("check")) {
+      return { action: "check" };
+    }
+    return { action: actions[0] || "check" };
+  }
+
+  decideAggressiveAction(player, actions, toCall, total, pressure) {
+    const openingValue = this.getOpeningValue(player);
+
+    if (actions.includes("double") && openingValue >= 9 && Math.random() < 0.3) {
+      return { action: "double" };
+    }
+
+    if (toCall > 0) {
+      if (
+        actions.includes("raise") &&
+        ((total >= 16 && Math.random() < 0.52) || (total >= 14 && pressure < 0.25))
+      ) {
+        const choice = this.getBotWagerChoice("raise", player, total >= 18 ? "max" : "medium");
         if (choice) {
           return { action: "raise", amount: choice.amount };
         }
       }
-
-      if (actions.includes("fold") && total <= 12 && pressure > 0.25 && Math.random() < 0.65) {
+      if (actions.includes("fold") && total <= 11 && pressure > 0.5 && Math.random() < 0.48) {
         return { action: "fold" };
       }
-
-      if (actions.includes("fold") && total <= 15 && pressure > 0.45 && Math.random() < 0.5) {
-        return { action: "fold" };
-      }
-
-      if (actions.includes("stand") && total >= 19 && Math.random() < 0.3) {
+      if (actions.includes("stand") && total >= 20 && Math.random() < 0.42) {
         return { action: "stand" };
       }
-
       if (actions.includes("call")) {
         return { action: "call" };
       }
-    } else {
-      if (actions.includes("stand") && total >= 19 && Math.random() < 0.7) {
-        return { action: "stand" };
-      }
+      return { action: actions[0] || "check" };
+    }
 
-      if (actions.includes("bet") && total >= 15 && Math.random() < 0.45) {
-        const options = this.getWagerOptions("bet", player);
-        const choice =
-          options[Math.min(options.length - 1, total >= 18 ? 2 : 1)] || options[0];
-        if (choice) {
-          return { action: "bet", amount: choice.amount };
-        }
-      }
-
-      if (actions.includes("check")) {
-        return { action: "check" };
+    if (actions.includes("bet") && total >= 13 && Math.random() < 0.7) {
+      const choice = this.getBotWagerChoice("bet", player, total >= 18 ? "max" : "medium");
+      if (choice) {
+        return { action: "bet", amount: choice.amount };
       }
     }
 
+    if (actions.includes("stand") && total >= 19 && Math.random() < 0.42) {
+      return { action: "stand" };
+    }
+    if (actions.includes("check")) {
+      return { action: "check" };
+    }
     return { action: actions[0] || "check" };
+  }
+
+  decideHighRiskAction(player, actions, toCall, total, pressure) {
+    const openingValue = this.getOpeningValue(player);
+
+    if (actions.includes("double") && openingValue >= 7 && Math.random() < 0.42) {
+      return { action: "double" };
+    }
+
+    if (toCall > 0) {
+      if (actions.includes("raise") && Math.random() < 0.74) {
+        const choice = this.getBotWagerChoice("raise", player, "max");
+        if (choice) {
+          return { action: "raise", amount: choice.amount };
+        }
+      }
+      if (actions.includes("fold") && total <= 9 && pressure > 0.78 && Math.random() < 0.26) {
+        return { action: "fold" };
+      }
+      if (actions.includes("call")) {
+        return { action: "call" };
+      }
+      return { action: actions[0] || "check" };
+    }
+
+    if (actions.includes("bet") && Math.random() < 0.85) {
+      const choice = this.getBotWagerChoice("bet", player, total >= 17 ? "max" : "medium");
+      if (choice) {
+        return { action: "bet", amount: choice.amount };
+      }
+    }
+
+    if (actions.includes("stand") && total >= 20 && Math.random() < 0.28) {
+      return { action: "stand" };
+    }
+    if (actions.includes("check")) {
+      return { action: "check" };
+    }
+    return { action: actions[0] || "check" };
+  }
+
+  decideBotAction(player) {
+    const actions = this.getAvailableActions(player);
+    const toCall = this.getToCall(player);
+    const total = this.getPlayerTotal(player);
+    const pressure = toCall / Math.max(this.bigBlindAmount, this.pot, 1);
+    const style = this.resolveBotStyle(player, pressure);
+
+    if (style === "conservative") {
+      return this.decideConservativeAction(player, actions, toCall, total, pressure);
+    }
+    if (style === "high-risk") {
+      return this.decideHighRiskAction(player, actions, toCall, total, pressure);
+    }
+    return this.decideAggressiveAction(player, actions, toCall, total, pressure);
   }
 
   playBotTurn() {

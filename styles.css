@@ -36,10 +36,8 @@ body {
   --profile-card-size: 58px;
   --community-card-size: 54px;
   background:
-    radial-gradient(circle at 12% 16%, rgba(255, 147, 64, 0.33), transparent 42%),
-    radial-gradient(circle at 88% 14%, rgba(61, 218, 220, 0.3), transparent 35%),
-    radial-gradient(circle at 80% 88%, rgba(255, 185, 94, 0.2), transparent 35%),
-    linear-gradient(145deg, var(--bg-0), var(--bg-1) 52%, var(--bg-2));
+    linear-gradient(145deg, rgba(15, 23, 31, 0.56), rgba(18, 26, 35, 0.7)),
+    url("assets/images/BG.png") center / cover no-repeat fixed;
 }
 
 h1,
@@ -571,7 +569,8 @@ button {
   margin: 6px 10px 0;
   border-radius: 14px;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
+  z-index: 2;
 }
 
 .table-felt {
@@ -607,7 +606,91 @@ button {
 .player-layer {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
+  overflow: visible;
+}
+
+.chip-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.chip-token {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(circle at 35% 30%, #fff4cf 0%, #f9d98e 34%, #d58a2f 70%, #8b3f08 100%);
+  border: 1px solid rgba(255, 235, 181, 0.88);
+  box-shadow:
+    inset 0 0 4px rgba(255, 246, 217, 0.62),
+    0 6px 10px rgba(0, 0, 0, 0.42);
+  opacity: 0;
+}
+
+.chip-token.to-pot {
+  animation-name: chip-fly-to-pot;
+  animation-timing-function: cubic-bezier(0.16, 0.72, 0.29, 0.99);
+  animation-fill-mode: forwards;
+}
+
+.chip-token.to-winner {
+  animation-name: chip-fly-to-winner;
+  animation-timing-function: cubic-bezier(0.18, 0.69, 0.32, 1);
+  animation-fill-mode: forwards;
+}
+
+.chip-token.to-winner:nth-child(2n) {
+  background:
+    radial-gradient(circle at 35% 30%, #ecfbff 0%, #7fe0ff 36%, #1f9ac5 72%, #0b4f77 100%);
+  border-color: rgba(169, 238, 255, 0.9);
+}
+
+.chip-token.to-winner:nth-child(3n) {
+  background:
+    radial-gradient(circle at 35% 30%, #fff2ea 0%, #ffb78f 34%, #ff7e56 72%, #9a2b1a 100%);
+  border-color: rgba(255, 204, 176, 0.9);
+}
+
+.pot-chip-stack {
+  position: absolute;
+  width: 84px;
+  height: 58px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.pot-chip-stack.active {
+  opacity: 1;
+}
+
+.pot-chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  transform: translate(
+      calc(-50% + var(--stack-x, 0px)),
+      calc(-50% + var(--stack-y, 0px))
+    )
+    rotate(var(--stack-r, 0deg));
+  background:
+    radial-gradient(circle at 35% 30%, #fff4cf 0%, #f9d98e 34%, #d58a2f 70%, #8b3f08 100%);
+  border: 1px solid rgba(255, 235, 181, 0.88);
+  box-shadow:
+    inset 0 0 4px rgba(255, 246, 217, 0.58),
+    0 4px 7px rgba(0, 0, 0, 0.32);
 }
 
 .player-seat {
@@ -946,6 +1029,46 @@ button {
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes chip-fly-to-pot {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+  15% {
+    opacity: 1;
+  }
+  58% {
+    transform: translate(
+      calc(-50% + var(--chip-dx-half)),
+      calc(-50% + var(--chip-dy-half))
+    ) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--chip-dx)), calc(-50% + var(--chip-dy))) scale(0.38);
+  }
+}
+
+@keyframes chip-fly-to-winner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.62);
+  }
+  18% {
+    opacity: 1;
+  }
+  62% {
+    transform: translate(
+      calc(-50% + var(--chip-dx-half)),
+      calc(-50% + var(--chip-dy-half))
+    ) scale(1.14);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--chip-dx)), calc(-50% + var(--chip-dy))) scale(0.42);
   }
 }
 
