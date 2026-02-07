@@ -1,4 +1,5 @@
 import { CARD_BACK_IMAGE, cardDisplayName } from "./cards.js";
+import { BLIND_PRESETS, MIN_BUYIN_MULTIPLIER, STARTING_STACK } from "./rules.js";
 import { tutorialModules, tutorialScreens } from "./tutorial-data.js";
 
 const seatClassByPlayer = {
@@ -28,9 +29,13 @@ const actionOrder = {
 };
 
 export const createAppUi = (engine) => {
-  const lobbyOverlay = document.querySelector("#lobbyOverlay");
+  const splashScreen = document.querySelector("#splashScreen");
+  const setupOverlay = document.querySelector("#setupOverlay");
   const startGameButton = document.querySelector("#startGameButton");
-  const blindSizeButtons = document.querySelectorAll(".blind-size-btn");
+  const playerNameInput = document.querySelector("#playerNameInput");
+  const tableMenuGrid = document.querySelector("#tableMenuGrid");
+  const selectedTableInfo = document.querySelector("#selectedTableInfo");
+  const startingStackValue = document.querySelector("#startingStackValue");
 
   const menuToggle = document.querySelector("#menuToggle");
   const closeMenu = document.querySelector("#closeMenu");
@@ -64,18 +69,7 @@ export const createAppUi = (engine) => {
   let tutorialCursor = 0;
   let pendingWagerAction = null;
   let pendingDecision = null;
-  let selectedBlinds = {
-    smallBlind:
-      Number(
-        Array.from(blindSizeButtons).find((button) => button.classList.contains("active"))?.dataset
-          ?.sb
-      ) || 1,
-    bigBlind:
-      Number(
-        Array.from(blindSizeButtons).find((button) => button.classList.contains("active"))?.dataset
-          ?.bb
-      ) || 2,
-  };
+  let selectedTablePreset = BLIND_PRESETS[0];
   let botTimer = null;
 
   const getTutorialSlides = () =>
@@ -96,14 +90,36 @@ export const createAppUi = (engine) => {
     pendingDecision = null;
   };
 
-  const applyBlindSize = (smallBlind, bigBlind) => {
-    selectedBlinds = { smallBlind, bigBlind };
-    blindSizeButtons.forEach((button) => {
-      button.classList.toggle(
-        "active",
-        Number(button.dataset.sb) === smallBlind && Number(button.dataset.bb) === bigBlind
-      );
+  const renderTableMenu = () => {
+    if (!tableMenuGrid) {
+      return;
+    }
+    tableMenuGrid.innerHTML = "";
+
+    BLIND_PRESETS.forEach((preset) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "table-menu-card";
+      button.classList.toggle("active", preset.id === selectedTablePreset.id);
+      button.innerHTML = `
+        <img src="assets/images/table.png" alt="${preset.label} blind table" />
+        <div class="table-menu-meta">
+          <strong>${preset.label}</strong>
+          <span>Min buy-in ${preset.bigBlind * MIN_BUYIN_MULTIPLIER}</span>
+        </div>
+      `;
+      button.addEventListener("click", () => {
+        selectedTablePreset = preset;
+        renderTableMenu();
+      });
+      tableMenuGrid.appendChild(button);
     });
+
+    if (selectedTableInfo) {
+      selectedTableInfo.textContent = `Selected table: ${selectedTablePreset.label} | Min buy-in ${
+        selectedTablePreset.bigBlind * MIN_BUYIN_MULTIPLIER
+      }`;
+    }
   };
 
   const renderTutorialTabs = () => {
@@ -253,6 +269,7 @@ export const createAppUi = (engine) => {
 
       const cards = document.createElement("div");
       cards.className = "seat-cards";
+      cards.classList.toggle("single-card", player.hand.length <= 1);
       const revealCards = true;
       player.hand.forEach((card) => {
         cards.appendChild(createCardNode(card, !revealCards));
@@ -557,22 +574,36 @@ export const createAppUi = (engine) => {
     render();
   });
 
-  blindSizeButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      applyBlindSize(Number(button.dataset.sb), Number(button.dataset.bb));
-    });
-  });
-
   startGameButton.addEventListener("click", () => {
     clearPendingFlow();
-    engine.setBlindStructure(selectedBlinds.smallBlind, selectedBlinds.bigBlind);
+    engine.setPlayerName(playerNameInput?.value || "PLAYER");
+    engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
     engine.startNewHand();
-    lobbyOverlay.classList.add("hidden");
+    setupOverlay.classList.add("hidden");
     render();
   });
 
-  applyBlindSize(selectedBlinds.smallBlind, selectedBlinds.bigBlind);
+  const beginSplashSequence = () => {
+    if (!splashScreen) {
+      setupOverlay.classList.remove("hidden");
+      return;
+    }
+    splashScreen.classList.add("active");
+    window.setTimeout(() => {
+      splashScreen.classList.add("fade-out");
+      window.setTimeout(() => {
+        splashScreen.classList.add("hidden");
+        setupOverlay.classList.remove("hidden");
+      }, 700);
+    }, 3000);
+  };
+
+  if (startingStackValue) {
+    startingStackValue.textContent = String(STARTING_STACK);
+  }
+  renderTableMenu();
   setMenuPanel(activeMenuPanel);
   renderTutorial();
+  beginSplashSequence();
   render();
 };

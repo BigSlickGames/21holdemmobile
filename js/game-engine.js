@@ -6,6 +6,7 @@ import {
 } from "./cards.js";
 import {
   BIG_BLIND,
+  MIN_BUYIN_MULTIPLIER,
   ROUND_SEQUENCE,
   SMALL_BLIND,
   STARTING_STACK,
@@ -53,6 +54,15 @@ export class Holdem21Engine {
     this.smallBlindAmount = sb;
     this.bigBlindAmount = bb;
     this.logEvent(`Blind level updated to ${sb}/${bb}.`);
+  }
+
+  setPlayerName(name) {
+    const cleanName = String(name || "").trim().slice(0, 12);
+    this.players[0].name = cleanName || "PLAYER";
+  }
+
+  getMinBuyIn() {
+    return this.bigBlindAmount * MIN_BUYIN_MULTIPLIER;
   }
 
   createPlayer(id, name, isHuman) {
@@ -112,8 +122,9 @@ export class Holdem21Engine {
     this.log = [];
 
     this.players.forEach((player) => {
-      if (player.chips < this.bigBlindAmount) {
-        player.chips = STARTING_STACK;
+      const minBuyIn = this.getMinBuyIn();
+      if (player.chips < minBuyIn) {
+        player.chips = Math.max(STARTING_STACK, minBuyIn);
       }
       player.hand = [];
       player.folded = false;
@@ -757,6 +768,8 @@ export class Holdem21Engine {
       handNumber: this.handNumber,
       roundIndex: this.roundIndex,
       roundName: ROUND_SEQUENCE[this.roundIndex],
+      startingStack: STARTING_STACK,
+      minBuyIn: this.getMinBuyIn(),
       smallBlindAmount: this.smallBlindAmount,
       bigBlindAmount: this.bigBlindAmount,
       dealerIndex: this.dealerIndex,

@@ -4,30 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=20" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
-    <div id="lobbyOverlay" class="lobby-overlay">
-      <section class="lobby-card glass" aria-label="Game lobby">
-        <p class="lobby-kicker">21 Hold'em v1.1</p>
-        <h2>Choose Blind Size</h2>
-        <p class="lobby-copy">
-          Pick the blind structure before you sit down.
-        </p>
-        <div id="blindSizeOptions" class="blind-size-options">
-          <button class="blind-size-btn active" type="button" data-sb="1" data-bb="2">
-            1 / 2
-          </button>
-          <button class="blind-size-btn" type="button" data-sb="2" data-bb="4">
-            2 / 4
-          </button>
-          <button class="blind-size-btn" type="button" data-sb="5" data-bb="10">
-            5 / 10
-          </button>
+    <div id="splashScreen" class="splash-screen" aria-hidden="true">
+      <img class="splash-logo" src="assets/images/21-holdem.png" alt="21 Hold'em" />
+    </div>
+
+    <div id="setupOverlay" class="setup-overlay hidden">
+      <section class="setup-card glass" aria-label="Player setup">
+        <div class="setup-columns">
+          <article class="profile-setup">
+            <p class="setup-kicker">Player Profile</p>
+            <h2>Seat Configuration</h2>
+            <label class="field-label" for="playerNameInput">Display Name</label>
+            <input
+              id="playerNameInput"
+              class="field-input"
+              type="text"
+              maxlength="12"
+              value="PLAYER"
+            />
+            <p class="setup-stat">Starting stack: <strong id="startingStackValue">5000</strong></p>
+            <p class="setup-stat">Minimum buy-in: <strong>10x BB</strong></p>
+            <p class="setup-stat">Blind range: <strong>1/2 to 100/200</strong></p>
+          </article>
+
+          <article class="table-setup">
+            <p class="setup-kicker">Table Menu</p>
+            <h2>Select Table Blinds</h2>
+            <div id="tableMenuGrid" class="table-menu-grid"></div>
+          </article>
         </div>
-        <button id="startGameButton" class="btn primary lobby-start" type="button">
-          Enter Table
-        </button>
+
+        <div class="setup-actions">
+          <p id="selectedTableInfo" class="selected-table-info">Selected table: 1/2</p>
+          <button id="startGameButton" class="btn primary" type="button">Join Table</button>
+        </div>
       </section>
     </div>
 
@@ -73,10 +86,15 @@
 
         <section class="menu-panel" data-panel-content="rules">
           <ul class="menu-list compact">
+            <li>Starting stack is 5000 chips per player.</li>
+            <li>Minimum buy-in for any table is 10x the big blind.</li>
+            <li>Blind menu supports tables from 1/2 up to 100/200.</li>
             <li>Each player starts with one private card face down.</li>
             <li>A single community card is revealed after each betting round.</li>
+            <li>Confirm flow for call/bet/raise is Confirm, Stand, or Cancel.</li>
             <li>Stand locks your total and you stop receiving future community cards.</li>
             <li>Double Down is pre-action only and gives a second private card.</li>
+            <li>If all active players are standing, hand jumps straight to showdown.</li>
             <li>If you bust over 21, you cannot win the pot.</li>
             <li>Ties split the pot equally.</li>
           </ul>
@@ -117,6 +135,6 @@
       </main>
     </div>
 
-    <script type="module" src="app.js?v=20"></script>
+    <script type="module" src="app.js?v=21"></script>
   </body>
 </html>
