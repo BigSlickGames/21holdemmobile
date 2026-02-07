@@ -30,6 +30,7 @@ const actionOrder = {
 
 const BOT_TURN_DELAY_MS = 3000;
 const ACTION_LABEL_DURATION_MS = 3000;
+const WINNER_REVEAL_DELAY_MS = 3000;
 
 export const createAppUi = (engine) => {
   const splashScreen = document.querySelector("#splashScreen");
@@ -66,6 +67,7 @@ export const createAppUi = (engine) => {
   const actionButtons = document.querySelector("#actionButtons");
   const wagerTray = document.querySelector("#wagerTray");
   const logList = document.querySelector("#logList");
+  const winnerBanner = document.querySelector("#winnerBanner");
 
   let activeMenuPanel = "overview";
   let activeTutorialModule = tutorialModules[0].id;
@@ -78,6 +80,11 @@ export const createAppUi = (engine) => {
   const actionLabelTimers = new Map();
   const visibleActionLabels = new Map();
   const lastKnownActions = new Map();
+  let winnerRevealTimer = null;
+  let winnerRevealReady = false;
+  let winnerRevealHandNumber = null;
+  let winnerIds = [];
+  let winnerAnnouncement = "";
 
   const getTutorialSlides = () =>
     tutorialScreens.filter((screen) => screen.module === activeTutorialModule);
@@ -97,8 +104,20 @@ export const createAppUi = (engine) => {
     pendingDecision = null;
   };
 
+  const clearWinnerReveal = () => {
+    if (winnerRevealTimer) {
+      window.clearTimeout(winnerRevealTimer);
+      winnerRevealTimer = null;
+    }
+    winnerRevealReady = false;
+    winnerRevealHandNumber = null;
+    winnerIds = [];
+    winnerAnnouncement = "";
+  };
+
   const startGameFromSetup = () => {
     clearPendingFlow();
+    clearWinnerReveal();
     engine.setPlayerName(playerNameInput?.value || "PLAYER");
     engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
     engine.startNewHand();
@@ -272,6 +291,70 @@ export const createAppUi = (engine) => {
     actionLabelTimers.set(playerId, timer);
   };
 
+  const buildWinnerAnnouncement = (state) => {
+    winnerIds = state.players
+      .filter((player) => player.lastAction === "Winner")
+      .map((player) => player.id);
+
+    if (winnerIds.length === 0) {
+      winnerAnnouncement = "No Winner";
+      return;
+    }
+
+    const winnerNames = state.players
+      .filter((player) => winnerIds.includes(player.id))
+      .map((player) => player.name.toUpperCase());
+
+    winnerAnnouncement =
+      winnerNames.length === 1 ? `${winnerNames[0]} WINS` : `${winnerNames.join(" & ")} SPLIT POT`;
+  };
+
+  const syncWinnerRevealState = (state) => {
+    if (!state.handComplete) {
+      clearWinnerReveal();
+      return;
+    }
+
+    if (winnerRevealHandNumber === state.handNumber) {
+      return;
+    }
+
+    winnerRevealHandNumber = state.handNumber;
+    winnerRevealReady = false;
+    buildWinnerAnnouncement(state);
+
+    if (winnerRevealTimer) {
+      window.clearTimeout(winnerRevealTimer);
+    }
+    winnerRevealTimer = window.setTimeout(() => {
+      winnerRevealTimer = null;
+      winnerRevealReady = true;
+      render();
+    }, WINNER_REVEAL_DELAY_MS);
+  };
+
+  const renderWinnerBanner = (state) => {
+    if (!winnerBanner) {
+      return;
+    }
+
+    winnerBanner.className = "winner-banner";
+    winnerBanner.textContent = "";
+
+    if (!state.handComplete || !winnerRevealReady) {
+      return;
+    }
+
+    winnerBanner.textContent = winnerAnnouncement || state.handResult || "Hand Complete";
+    winnerBanner.classList.add("show");
+    if (winnerIds.length > 1) {
+      winnerBanner.classList.add("split");
+    }
+    if (winnerIds.length === 0) {
+      winnerBanner.classList.add("no-winner");
+    }
+  };
+
   const renderCommunity = (state) => {
     communityCards.innerHTML = "";
     for (let index = 0; index < 4; index += 1) {
@@ -328,6 +411,11 @@ export const createAppUi = (engine) => {
       }
       if (!state.handComplete && state.currentTurnIndex === player.id) {
         seat.classList.add("is-turn");
+      }
+      if (winnerRevealReady && winnerIds.includes(player.id)) {
+        seat.classList.add("is-winner");
+      } else if (winnerRevealReady && winnerIds.length > 0) {
+        seat.classList.add("is-faded");
       }
 
       const shell = document.createElement("div");
@@ -597,6 +685,7 @@ export const createAppUi = (engine) => {
 
   const render = () => {
     const state = engine.getVisibleState();
+    syncWinnerRevealState(state);
 
     if (tableTitle) {
       tableTitle.textContent = `21 HOLD'EM ${state.smallBlindAmount}/${state.bigBlindAmount}`;
@@ -607,6 +696,7 @@ export const createAppUi = (engine) => {
 
     renderCommunity(state);
     renderPlayers(state);
+    renderWinnerBanner(state);
     renderStatusAndActions(state);
     renderLog(state);
     renderTutorial();
