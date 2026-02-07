@@ -1,0 +1,104 @@
+@keyframes splash-grow {
+  0% {
+    transform: scale(0.66);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes chip-fly-to-pot {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+  15% {
+    opacity: 1;
+  }
+  58% {
+    transform: translate(
+      calc(-50% + var(--chip-dx-half)),
+      calc(-50% + var(--chip-dy-half))
+    ) scale(1.05);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--chip-dx)), calc(-50% + var(--chip-dy))) scale(0.38);
+  }
+}
+
+@keyframes chip-fly-to-winner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.62);
+  }
+  18% {
+    opacity: 1;
+  }
+  62% {
+    transform: translate(
+      calc(-50% + var(--chip-dx-half)),
+      calc(-50% + var(--chip-dy-half))
+    ) scale(1.14);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--chip-dx)), calc(-50% + var(--chip-dy))) scale(0.42);
+  }
+}
+
+@keyframes winner-banner-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes winner-banner-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 16px 32px rgba(11, 13, 18, 0.46),
+      0 0 0 0 rgba(255, 209, 142, 0.42);
+  }
+  50% {
+    box-shadow:
+      0 18px 36px rgba(11, 13, 18, 0.52),
+      0 0 0 12px rgba(255, 209, 142, 0);
+  }
+}
+
+@keyframes winner-seat-glow {
+  0%,
+  100% {
+    filter:
+      drop-shadow(0 0 0.35rem rgba(255, 188, 98, 0.8))
+      drop-shadow(0 0 0.9rem rgba(255, 158, 81, 0.55));
+  }
+  50% {
+    filter:
+      drop-shadow(0 0 0.7rem rgba(255, 213, 131, 1))
+      drop-shadow(0 0 1.2rem rgba(255, 156, 82, 0.78));
+  }
+}
+
+@keyframes action-on-card {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -56%) scale(0.92);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(1.02);
+  }
+}
+

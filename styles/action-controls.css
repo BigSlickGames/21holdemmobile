@@ -1,0 +1,89 @@
+.action-dock {
+  padding: 8px 14px 14px;
+  display: grid;
+  grid-template-rows: 0 auto auto;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+  min-height: 124px;
+}
+
+.action-dock .turn-prompt {
+  display: none;
+}
+
+.action-buttons {
+  justify-content: center;
+  max-width: 640px;
+  min-height: 42px;
+}
+
+.wager-tray {
+  justify-items: center;
+  min-height: 24px;
+}
+
+.menu-log-list {
+  max-height: 52vh;
+  padding-right: 4px;
+}
+
+.action-buttons,
+.wager-buttons,
+.decision-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.action-btn {
+  border: 1px solid rgba(236, 129, 39, 0.72);
+  background: linear-gradient(180deg, rgba(118, 122, 131, 0.94), rgba(75, 79, 87, 0.94));
+  color: #f4f7fa;
+  border-radius: 10px;
+  padding: 8px 11px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.action-btn:hover {
+  border-color: rgba(255, 214, 167, 0.96);
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--orange-1), var(--orange-2));
+  color: #2d1a0f;
+  border-color: rgba(255, 223, 183, 0.88);
+}
+
+.action-btn.ghost {
+  background: linear-gradient(180deg, rgba(91, 94, 104, 0.82), rgba(58, 62, 68, 0.9));
+}
+
+.action-btn:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.wager-tray {
+  display: grid;
+  gap: 8px;
+}
+
+.wager-title {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.log-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.38;
+  overflow: auto;
+  min-height: 0;
+  max-height: 100%;
+  display: grid;
+  gap: 7px;
+}
+

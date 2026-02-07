@@ -1,0 +1,109 @@
+.workspace {
+  min-height: 0;
+  padding: 14px;
+  display: grid;
+  place-items: center;
+}
+
+.game-board {
+  width: min(1080px, 96vw);
+  min-height: min(88vh, 760px);
+  border-radius: 20px;
+  padding: 0;
+  position: relative;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) 124px;
+}
+
+.board-header {
+  margin: 0;
+  min-height: 84px;
+  border-radius: 20px 20px 8px 8px;
+  border: 2px solid #da7424;
+  background: linear-gradient(180deg, #6b6c70, #4f5154);
+  display: grid;
+  grid-template-columns: 120px 1fr 120px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.board-header h1 {
+  margin: 0;
+  text-align: center;
+  color: #f0f3f6;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  font-size: clamp(1.35rem, 4vw, 3.1rem);
+}
+
+.board-header .btn {
+  justify-self: center;
+  min-width: 92px;
+}
+
+.board-meta {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 8px 2px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.winner-banner {
+  position: absolute;
+  left: 50%;
+  top: 100px;
+  transform: translateX(-50%) scale(0.92);
+  z-index: 10;
+  min-width: min(70vw, 420px);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 219, 168, 0.95);
+  background: linear-gradient(130deg, rgba(255, 186, 93, 0.94), rgba(237, 106, 56, 0.94));
+  color: #fff6e8;
+  text-align: center;
+  font-size: clamp(1rem, 2.4vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  padding: 10px 22px;
+  text-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 32px rgba(11, 13, 18, 0.46);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.winner-banner.show {
+  animation:
+    winner-banner-in 0.5s ease forwards,
+    winner-banner-pulse 1.2s ease-in-out infinite;
+}
+
+.winner-banner.split {
+  background: linear-gradient(130deg, rgba(84, 193, 220, 0.94), rgba(55, 147, 196, 0.94));
+  border-color: rgba(181, 237, 250, 0.95);
+}
+
+.winner-banner.no-winner {
+  background: linear-gradient(130deg, rgba(145, 149, 160, 0.92), rgba(88, 92, 103, 0.94));
+  border-color: rgba(220, 223, 230, 0.84);
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 6px 11px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(28, 40, 48, 0.72);
+  color: var(--muted);
+}
+
+.badge.strong {
+  color: #fff7ec;
+  background: linear-gradient(130deg, rgba(255, 187, 98, 0.52), rgba(228, 98, 53, 0.62));
+  border-color: rgba(255, 214, 159, 0.84);
+}
+

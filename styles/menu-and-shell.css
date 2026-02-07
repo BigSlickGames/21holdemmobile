@@ -1,0 +1,221 @@
+.app-shell {
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.app-shell.prestart {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.top-bar {
+  margin: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.top-title {
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  text-align: center;
+}
+
+.top-title .kicker {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.top-title h1 {
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  letter-spacing: 0.5px;
+}
+
+.btn {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--text);
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--orange-1), var(--orange-2));
+  color: #2b1a0f;
+  border-color: rgba(255, 225, 179, 0.86);
+  font-weight: 700;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn.mini {
+  padding: 6px 10px;
+  font-size: 0.88rem;
+}
+
+.menu-drawer {
+  position: fixed;
+  left: 12px;
+  top: 88px;
+  bottom: 12px;
+  width: min(420px, calc(100vw - 24px));
+  border-radius: 18px;
+  padding: 14px;
+  z-index: 30;
+  overflow: auto;
+  transform: translateX(-115%);
+  transition: transform 0.26s ease;
+}
+
+.menu-drawer.open {
+  transform: translateX(0);
+}
+
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.menu-header h2 {
+  font-size: 1.05rem;
+}
+
+.menu-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.menu-tab {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.1;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.menu-tab.active {
+  background: linear-gradient(140deg, rgba(67, 222, 223, 0.38), rgba(255, 148, 63, 0.42));
+  border-color: rgba(255, 229, 192, 0.85);
+}
+
+.menu-panel {
+  margin-top: 12px;
+  display: none;
+  gap: 10px;
+}
+
+.menu-panel.active {
+  display: grid;
+}
+
+.menu-copy {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.menu-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.menu-list.compact {
+  gap: 7px;
+}
+
+.tutorial-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tutorial-module-tab {
+  border: 1px solid rgba(255, 188, 120, 0.64);
+  background: linear-gradient(180deg, rgba(77, 87, 115, 0.74), rgba(53, 61, 82, 0.82));
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+
+.tutorial-module-tab.active {
+  background: linear-gradient(135deg, rgba(255, 170, 79, 0.8), rgba(70, 187, 203, 0.72));
+  border-color: rgba(255, 225, 182, 0.94);
+}
+
+.tutorial-card {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(22, 30, 37, 0.58);
+  display: grid;
+  gap: 9px;
+}
+
+.tutorial-meta {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.tutorial-card h3 {
+  font-size: 1.05rem;
+}
+
+.tutorial-body {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  line-height: 1.38;
+}
+
+.tutorial-bullets {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+}
+
+.tutorial-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#tutorialCounter {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.menu-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
