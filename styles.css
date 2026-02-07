@@ -244,6 +244,11 @@ button {
   grid-template-rows: auto 1fr;
 }
 
+.app-shell.prestart {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .top-bar {
   margin: 12px;
   padding: 12px 14px;
@@ -469,7 +474,7 @@ button {
   position: relative;
   background: linear-gradient(170deg, #d2d2d4, #bdbec1);
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr) 124px;
 }
 
 .board-header {
@@ -569,27 +574,30 @@ button {
 .player-seat {
   position: absolute;
   width: clamp(112px, 13vw, 152px);
-  transition: transform 0.18s ease, filter 0.18s ease;
+  transition: none;
 }
 
 .profile-shell {
   position: relative;
   width: 100%;
   aspect-ratio: 374 / 633;
-  background: url("assets/images/rect20.png") center / 100% 100% no-repeat;
+  background: none;
 }
 
 .profile-header-band {
   position: absolute;
   left: 2%;
-  top: 1%;
+  bottom: 0%;
   width: 92%;
   height: 16%;
   background: url("assets/images/rect22.png") center / 100% 100% no-repeat;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  padding-left: 19%;
   padding-right: 19%;
+  padding-bottom: 4%;
+  z-index: 4;
 }
 
 .profile-header-band strong {
@@ -597,6 +605,8 @@ button {
   font-weight: 500;
   letter-spacing: 0.4px;
   color: #eef2f6;
+  line-height: 1;
+  transform: translateY(6%);
 }
 
 .profile-role-badge,
@@ -616,45 +626,49 @@ button {
   top: 0%;
   right: 0%;
   font-size: clamp(0.52rem, 0.85vw, 0.74rem);
+  z-index: 5;
 }
 
 .profile-body {
   position: absolute;
   left: 8%;
   right: 8%;
-  top: 19%;
-  bottom: 9%;
+  top: 5%;
+  bottom: 16%;
   border-radius: 14px;
-  border: 2px solid #e27622;
-  background: linear-gradient(170deg, rgba(255, 255, 255, 0.07), rgba(12, 16, 22, 0.28));
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0;
   overflow: hidden;
 }
 
 .profile-total-badge {
-  bottom: 0%;
-  right: 0%;
-  font-size: clamp(0.84rem, 1.8vw, 1.48rem);
+  top: 0%;
+  left: 0%;
+  font-size: clamp(0.52rem, 0.85vw, 0.74rem);
+  z-index: 5;
+}
+
+.profile-total-badge.is-hidden-total {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .profile-footer {
   margin-top: 4px;
-  padding: 0 2px;
+  padding: 0;
   display: flex;
-  justify-content: space-between;
-  gap: 4px;
+  justify-content: center;
   font-size: 0.58rem;
-  min-height: 0.82rem;
+  min-height: 0.9rem;
   color: var(--muted);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
 
 .profile-footer span {
   display: block;
-  max-width: 48%;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -662,7 +676,11 @@ button {
 
 .player-seat.is-turn {
   transform: none;
-  filter: drop-shadow(0 0 0.45rem rgba(255, 175, 87, 0.9));
+  filter: none;
+}
+
+.player-seat.is-turn .profile-shell {
+  filter: drop-shadow(0 0 0.4rem rgba(255, 175, 87, 0.7));
 }
 
 .player-seat.is-folded {
@@ -675,21 +693,35 @@ button {
 
 .seat-cards {
   display: flex;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
+  gap: 3%;
+  align-items: flex-end;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
   width: 100%;
+  height: 100%;
+  padding-left: 4%;
 }
 
-.profile-body .card-tile {
-  width: min(var(--profile-card-size), 48%);
-  height: auto;
-  aspect-ratio: 1 / 1;
+.profile-card-image {
+  flex: 0 0 46%;
+  min-width: 0;
+  width: 46%;
+  max-width: 46%;
+  height: 165%;
+  object-fit: contain;
+  display: block;
+  transform: translateY(44%);
+  image-rendering: optimizeQuality;
 }
 
-.seat-cards.single-card .card-tile {
-  width: min(var(--profile-card-size), 68%);
+.seat-cards.single-card .profile-card-image {
+  flex-basis: 60%;
+  width: 60%;
+  max-width: 60%;
+}
+
+.profile-card-image.hidden-profile-card {
+  filter: saturate(0.92);
 }
 
 .card-tile {
@@ -727,7 +759,7 @@ button {
 
 .seat-bottom {
   left: 50%;
-  bottom: 7%;
+  bottom: 1%;
   transform: translateX(-50%);
 }
 
@@ -741,28 +773,55 @@ button {
   top: 12%;
 }
 
+.profile-action-label {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  min-width: 66px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 129, 39, 0.86);
+  background: linear-gradient(180deg, rgba(116, 121, 129, 0.95), rgba(52, 56, 62, 0.95));
+  color: #f4f7fb;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 9px 15px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  z-index: 7;
+}
+
+.profile-action-label.show {
+  animation: action-on-card 3s ease forwards;
+}
+
 .action-dock {
   padding: 8px 14px 14px;
   display: grid;
+  grid-template-rows: 0 auto auto;
+  align-content: start;
   justify-items: center;
   gap: 8px;
+  min-height: 124px;
 }
 
 .action-dock .turn-prompt {
-  text-align: center;
-  color: #5e6269;
-  min-height: 24px;
-  font-size: 0.92rem;
-  font-weight: 600;
+  display: none;
 }
 
 .action-buttons {
   justify-content: center;
   max-width: 640px;
+  min-height: 42px;
 }
 
 .wager-tray {
   justify-items: center;
+  min-height: 24px;
 }
 
 .menu-log-list {
@@ -838,6 +897,22 @@ button {
   }
 }
 
+@keyframes action-on-card {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -56%) scale(0.92);
+  }
+  12%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -44%) scale(1.02);
+  }
+}
+
 @media (max-width: 1140px) {
   .setup-columns {
     grid-template-columns: 1fr;
@@ -854,6 +929,7 @@ button {
   .game-board {
     width: 98vw;
     min-height: min(92vh, 760px);
+    grid-template-rows: auto auto minmax(0, 1fr) 118px;
   }
 }
 
@@ -894,7 +970,7 @@ button {
   }
 
   .seat-bottom {
-    bottom: 10%;
+    bottom: 1%;
   }
 
   .community-cards {
@@ -930,6 +1006,7 @@ button {
 
   .game-board {
     min-height: min(92vh, 640px);
+    grid-template-rows: auto auto minmax(0, 1fr) 110px;
   }
 
   .board-header {
@@ -984,7 +1061,7 @@ button {
   }
 
   .seat-bottom {
-    bottom: 8%;
+    bottom: 1%;
   }
 
   .profile-footer {

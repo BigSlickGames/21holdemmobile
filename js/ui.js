@@ -28,10 +28,13 @@ const actionOrder = {
   fold: 5,
 };
 
+const BOT_TURN_DELAY_MS = 3000;
+const ACTION_LABEL_DURATION_MS = 3000;
+
 export const createAppUi = (engine) => {
   const splashScreen = document.querySelector("#splashScreen");
   const setupOverlay = document.querySelector("#setupOverlay");
-  const startGameButton = document.querySelector("#startGameButton");
+  const appShell = document.querySelector(".app-shell");
   const playerNameInput = document.querySelector("#playerNameInput");
   const tableMenuGrid = document.querySelector("#tableMenuGrid");
   const selectedTableInfo = document.querySelector("#selectedTableInfo");
@@ -71,6 +74,10 @@ export const createAppUi = (engine) => {
   let pendingDecision = null;
   let selectedTablePreset = BLIND_PRESETS[0];
   let botTimer = null;
+  let gameStarted = false;
+  const actionLabelTimers = new Map();
+  const visibleActionLabels = new Map();
+  const lastKnownActions = new Map();
 
   const getTutorialSlides = () =>
     tutorialScreens.filter((screen) => screen.module === activeTutorialModule);
@@ -88,6 +95,17 @@ export const createAppUi = (engine) => {
   const clearPendingFlow = () => {
     pendingWagerAction = null;
     pendingDecision = null;
+  };
+
+  const startGameFromSetup = () => {
+    clearPendingFlow();
+    engine.setPlayerName(playerNameInput?.value || "PLAYER");
+    engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
+    engine.startNewHand();
+    setupOverlay?.classList.add("hidden");
+    appShell?.classList.remove("prestart");
+    gameStarted = true;
+    render();
   };
 
   const renderTableMenu = () => {
@@ -113,7 +131,7 @@ export const createAppUi = (engine) => {
       `;
       button.addEventListener("click", () => {
         selectedTablePreset = preset;
-        renderTableMenu();
+        startGameFromSetup();
       });
       tableMenuGrid.appendChild(button);
     });
@@ -122,9 +140,6 @@ export const createAppUi = (engine) => {
       selectedTableInfo.textContent = `Selected table: ${selectedTablePreset.label} | Min buy-in ${
         selectedTablePreset.bigBlind * MIN_BUYIN_MULTIPLIER
       }`;
-    }
-    if (startGameButton) {
-      startGameButton.textContent = `Join ${selectedTablePreset.label}`;
     }
   };
 
@@ -190,6 +205,73 @@ export const createAppUi = (engine) => {
     return cardWrap;
   };
 
+  const createProfileCardImage = (card, hidden = false) => {
+    const img = document.createElement("img");
+    img.className = "profile-card-image";
+    if (hidden) {
+      img.classList.add("hidden-profile-card");
+    }
+    img.src = hidden ? CARD_BACK_IMAGE : card?.image || CARD_BACK_IMAGE;
+    img.alt = hidden ? "Hidden card" : card ? cardDisplayName(card) : "Card back";
+    img.loading = "lazy";
+    img.decoding = "async";
+    return img;
+  };
+
+  const getActionBannerText = (lastAction) => {
+    if (!lastAction || lastAction === "Waiting") {
+      return null;
+    }
+    const normalized = String(lastAction).toLowerCase();
+    if (normalized.includes("+ stand") || normalized.includes("stand")) {
+      return "STAND";
+    }
+    if (normalized.includes("raise")) {
+      return "RAISE";
+    }
+    if (normalized.includes("bet")) {
+      return "BET";
+    }
+    if (normalized.includes("call")) {
+      return "CALL";
+    }
+    if (normalized.includes("check")) {
+      return "CHECK";
+    }
+    if (normalized.includes("fold")) {
+      return "FOLD";
+    }
+    if (normalized.includes("double")) {
+      return "DOUBLE";
+    }
+    if (normalized.includes("bust")) {
+      return "BUST";
+    }
+    if (normalized.includes("winner")) {
+      return "WIN";
+    }
+    const token = String(lastAction).trim().split(" ")[0];
+    return token ? token.toUpperCase() : null;
+  };
+
+  const queueActionBanner = (playerId, lastAction) => {
+    const label = getActionBannerText(lastAction);
+    if (!label) {
+      return;
+    }
+    visibleActionLabels.set(playerId, label);
+    const priorTimer = actionLabelTimers.get(playerId);
+    if (priorTimer) {
+      window.clearTimeout(priorTimer);
+    }
+    const timer = window.setTimeout(() => {
+      visibleActionLabels.delete(playerId);
+      actionLabelTimers.delete(playerId);
+      render();
+    }, ACTION_LABEL_DURATION_MS);
+    actionLabelTimers.set(playerId, timer);
+  };
+
   const renderCommunity = (state) => {
     communityCards.innerHTML = "";
     for (let index = 0; index < 4; index += 1) {
@@ -212,27 +294,10 @@ export const createAppUi = (engine) => {
     return "P";
   };
 
-  const getStatusText = (player) => {
-    if (player.folded) {
-      return "Folded";
+  const getTotalBubbleValue = (state, player) => {
+    if (!player.isHuman && !state.handComplete) {
+      return "";
     }
-    if (player.busted) {
-      return "Busted";
-    }
-    const tokens = [];
-    if (player.standing) {
-      tokens.push("Stand");
-    }
-    if (player.doubleDown) {
-      tokens.push("DD");
-    }
-    if (tokens.length === 0) {
-      return player.lastAction;
-    }
-    return `${player.lastAction} | ${tokens.join(" ")}`;
-  };
-
-  const getTotalBubbleValue = (player) => {
     if (player.folded) {
       return "--";
     }
@@ -246,6 +311,12 @@ export const createAppUi = (engine) => {
     playerLayer.innerHTML = "";
 
     state.players.forEach((player) => {
+      const knownAction = lastKnownActions.get(player.id);
+      if (player.lastAction !== knownAction) {
+        lastKnownActions.set(player.id, player.lastAction);
+        queueActionBanner(player.id, player.lastAction);
+      }
+
       const seat = document.createElement("article");
       seat.className = `player-seat ${seatClassByPlayer[player.id]}`;
 
@@ -276,33 +347,38 @@ export const createAppUi = (engine) => {
       const cards = document.createElement("div");
       cards.className = "seat-cards";
       cards.classList.toggle("single-card", player.hand.length <= 1);
-      const revealCards = true;
+      const revealCards = player.isHuman || state.handComplete;
       player.hand.forEach((card) => {
-        cards.appendChild(createCardNode(card, !revealCards));
+        cards.appendChild(createProfileCardImage(card, !revealCards));
       });
       if (player.hand.length === 0) {
-        cards.appendChild(createCardNode(null, true));
+        cards.appendChild(createProfileCardImage(null, true));
       }
 
       body.appendChild(cards);
 
       const totalBadge = document.createElement("div");
       totalBadge.className = "profile-total-badge";
-      totalBadge.textContent = getTotalBubbleValue(player);
+      totalBadge.textContent = getTotalBubbleValue(state, player);
+      totalBadge.classList.toggle("is-hidden-total", totalBadge.textContent === "");
 
       const seatBottom = document.createElement("div");
       seatBottom.className = "profile-footer";
-      seatBottom.innerHTML = `
-        <span>${player.chips} chips</span>
-        <span>${getStatusText(player)}</span>
-      `;
+      seatBottom.innerHTML = `<span>${player.chips} chips</span>`;
 
+      const actionBannerText = visibleActionLabels.get(player.id);
       shell.appendChild(headerBand);
       shell.appendChild(roleBadge);
       shell.appendChild(body);
       shell.appendChild(totalBadge);
       seat.appendChild(shell);
       seat.appendChild(seatBottom);
+      if (actionBannerText) {
+        const actionBanner = document.createElement("div");
+        actionBanner.className = "profile-action-label show";
+        actionBanner.textContent = actionBannerText;
+        seat.appendChild(actionBanner);
+      }
       playerLayer.appendChild(seat);
     });
   };
@@ -541,11 +617,11 @@ export const createAppUi = (engine) => {
     }
 
     const currentPlayer = state.players[state.currentTurnIndex];
-    if (!state.handComplete && currentPlayer && !currentPlayer.isHuman) {
+    if (gameStarted && !state.handComplete && currentPlayer && !currentPlayer.isHuman) {
       botTimer = window.setTimeout(() => {
         engine.playBotTurn();
         render();
-      }, 720);
+      }, BOT_TURN_DELAY_MS);
     }
   };
 
@@ -577,15 +653,6 @@ export const createAppUi = (engine) => {
   newHandButton.addEventListener("click", () => {
     clearPendingFlow();
     engine.startNewHand();
-    render();
-  });
-
-  startGameButton.addEventListener("click", () => {
-    clearPendingFlow();
-    engine.setPlayerName(playerNameInput?.value || "PLAYER");
-    engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
-    engine.startNewHand();
-    setupOverlay.classList.add("hidden");
     render();
   });
 
