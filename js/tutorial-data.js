@@ -85,7 +85,7 @@ export const tutorialWalkthroughSteps = [
     id: "open_hand_log",
     phase: "Review",
     title: "Open the hand log",
-    instruction: "Click the Hands tab in the menu.",
+    instruction: "Use the menu dropdown and select Hands.",
     why: "The log lets you audit every bet, call, and reveal in sequence.",
     bullets: [
       "Use this to understand why the pot changed.",
@@ -93,8 +93,8 @@ export const tutorialWalkthroughSteps = [
     ],
     mode: "menu",
     panel: "tutorial",
-    targetSelector: '.menu-tab[data-panel="hands"]',
-    clickKeys: ["tab-hands"],
+    targetSelector: "#menuPanelSelect",
+    autoAdvance: "panel-hands",
   },
   {
     id: "close_menu",

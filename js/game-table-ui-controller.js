@@ -48,11 +48,12 @@ export const createAppUi = (engine) => {
   const tableMenuGrid = document.querySelector("#tableMenuGrid");
   const selectedTableInfo = document.querySelector("#selectedTableInfo");
   const startingStackValue = document.querySelector("#startingStackValue");
+  const setupTutorialMenuBtn = document.querySelector("#setupTutorialMenuBtn");
 
   const menuToggle = document.querySelector("#menuToggle");
   const closeMenu = document.querySelector("#closeMenu");
   const menuDrawer = document.querySelector("#menuDrawer");
-  const menuTabs = document.querySelectorAll(".menu-tab");
+  const menuPanelSelect = document.querySelector("#menuPanelSelect");
   const menuPanels = document.querySelectorAll(".menu-panel");
 
   const tutorialStart = document.querySelector("#tutorialStart");
@@ -117,12 +118,19 @@ export const createAppUi = (engine) => {
 
   const setMenuPanel = (panelId) => {
     activeMenuPanel = panelId;
-    menuTabs.forEach((tab) => {
-      tab.classList.toggle("active", tab.dataset.panel === panelId);
-    });
+    if (menuPanelSelect && menuPanelSelect.value !== panelId) {
+      menuPanelSelect.value = panelId;
+    }
     menuPanels.forEach((panel) => {
       panel.classList.toggle("active", panel.dataset.panelContent === panelId);
     });
+  };
+
+  const setLobbyMenuMode = (enabled) => {
+    if (gameStarted) {
+      return;
+    }
+    setupOverlay?.classList.toggle("menu-mode", enabled);
   };
 
   const getCurrentTutorialStep = () => tutorialWalkthroughSteps[tutorialState.stepIndex] || null;
@@ -290,6 +298,9 @@ export const createAppUi = (engine) => {
     if (step.autoAdvance === "community-card") {
       return state.community.length > 0;
     }
+    if (step.autoAdvance === "panel-hands") {
+      return activeMenuPanel === "hands";
+    }
     return false;
   };
 
@@ -309,6 +320,9 @@ export const createAppUi = (engine) => {
     tutorialState.stepIndex = 0;
     tutorialState.complete = false;
     clearSpeechQueue();
+    if (!gameStarted) {
+      startGameFromSetup();
+    }
     menuDrawer?.classList.add("open");
     setMenuPanel("tutorial");
     setTutorialStepMode();
@@ -328,6 +342,9 @@ export const createAppUi = (engine) => {
     tutorialState.complete = false;
     tutorialState.active = true;
     clearSpeechQueue();
+    if (!gameStarted) {
+      startGameFromSetup();
+    }
     menuDrawer?.classList.add("open");
     setMenuPanel("tutorial");
     setTutorialStepMode();
@@ -661,6 +678,8 @@ export const createAppUi = (engine) => {
     engine.setPlayerName(playerNameInput?.value || "PLAYER");
     engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
     engine.startNewHand();
+    setLobbyMenuMode(false);
+    menuDrawer?.classList.remove("open");
     setupOverlay?.classList.add("hidden");
     appShell?.classList.remove("prestart");
     gameStarted = true;
@@ -1328,9 +1347,6 @@ export const createAppUi = (engine) => {
     if (target.closest(".seat-bottom .profile-shell")) {
       keys.push("hero-seat");
     }
-    if (target.closest('.menu-tab[data-panel="hands"]')) {
-      keys.push("tab-hands");
-    }
     if (target.closest("#closeMenu")) {
       keys.push("close-menu");
     }
@@ -1375,12 +1391,19 @@ export const createAppUi = (engine) => {
 
   closeMenu.addEventListener("click", () => {
     menuDrawer.classList.remove("open");
+    setLobbyMenuMode(false);
   });
 
-  menuTabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      setMenuPanel(tab.dataset.panel);
-    });
+  setupTutorialMenuBtn?.addEventListener("click", () => {
+    setMenuPanel("tutorial");
+    setLobbyMenuMode(true);
+    menuDrawer?.classList.add("open");
+    renderTutorial();
+  });
+
+  menuPanelSelect?.addEventListener("change", () => {
+    setMenuPanel(menuPanelSelect.value);
+    render();
   });
 
   tutorialStart?.addEventListener("click", () => {
@@ -1431,6 +1454,7 @@ export const createAppUi = (engine) => {
 
   const beginSplashSequence = () => {
     if (!splashScreen) {
+      setLobbyMenuMode(false);
       setupOverlay.classList.remove("hidden");
       return;
     }
@@ -1439,6 +1463,7 @@ export const createAppUi = (engine) => {
       splashScreen.classList.add("fade-out");
       window.setTimeout(() => {
         splashScreen.classList.add("hidden");
+        setLobbyMenuMode(false);
         setupOverlay.classList.remove("hidden");
       }, 700);
     }, 3000);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=42" />
+    <link rel="stylesheet" href="styles.css?v=44" />
   </head>
   <body>
     <div id="splashScreen" class="splash-screen" aria-hidden="true">
@@ -39,6 +39,9 @@
 
         <div class="setup-actions">
           <p id="selectedTableInfo" class="selected-table-info">Tap a table to join instantly.</p>
+          <button id="setupTutorialMenuBtn" class="btn ghost mini" type="button">
+            Tutorial Menu
+          </button>
         </div>
       </section>
     </div>
@@ -50,11 +53,14 @@
           <button id="closeMenu" class="btn ghost mini" type="button">Close</button>
         </div>
 
-        <div class="menu-tabs" role="tablist" aria-label="Menu panels">
-          <button class="menu-tab active" type="button" data-panel="overview">Overview</button>
-          <button class="menu-tab" type="button" data-panel="tutorial">Tutorial</button>
-          <button class="menu-tab" type="button" data-panel="rules">Rules</button>
-          <button class="menu-tab" type="button" data-panel="hands">Hands</button>
+        <div class="menu-select-wrap">
+          <label class="menu-select-label" for="menuPanelSelect">Menu Section</label>
+          <select id="menuPanelSelect" class="menu-panel-select" aria-label="Menu panels">
+            <option value="overview">Overview</option>
+            <option value="tutorial">Tutorial</option>
+            <option value="rules">Rules</option>
+            <option value="hands">Hands</option>
+          </select>
         </div>
 
         <section class="menu-panel active" data-panel-content="overview">
@@ -149,6 +155,6 @@
       </main>
     </div>
 
-    <script type="module" src="js/holdem-app-bootstrap.js?v=41"></script>
+    <script type="module" src="js/holdem-app-bootstrap.js?v=44"></script>
   </body>
 </html>

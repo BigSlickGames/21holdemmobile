@@ -109,6 +109,10 @@ button {
   display: none;
 }
 
+.setup-overlay.menu-mode {
+  display: none;
+}
+
 .setup-card {
   width: min(1120px, 100%);
   border-radius: 24px;
@@ -251,8 +255,17 @@ button {
 }
 
 .app-shell.prestart {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.app-shell.prestart .workspace {
   visibility: hidden;
   pointer-events: none;
+}
+
+.app-shell.prestart .menu-drawer {
+  z-index: 110;
 }
 
 .top-bar {
@@ -298,15 +311,16 @@ button {
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--orange-1), var(--orange-2));
+  background: #f08b3f;
   color: #2b1a0f;
-  border-color: rgba(255, 225, 179, 0.86);
+  border-color: #d67730;
   font-weight: 700;
 }
 
 .btn.ghost {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: #4c5968;
+  border-color: #3e4c5c;
+  color: #f2f6fb;
 }
 
 .btn.mini {
@@ -343,26 +357,33 @@ button {
   font-size: 1.05rem;
 }
 
-.menu-tabs {
+.menu-select-wrap {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
-.menu-tab {
+.menu-select-label {
+  font-size: 0.74rem;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.menu-panel-select {
+  width: 100%;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.26);
-  background: rgba(255, 255, 255, 0.09);
-  color: var(--text);
-  font-size: 0.82rem;
-  line-height: 1.1;
+  border: 1px solid #3f4d5c;
+  background: #556474;
+  color: #f3f7fc;
   padding: 8px 10px;
-  cursor: pointer;
+  font-size: 0.86rem;
+  font-family: inherit;
+  outline: none;
 }
 
-.menu-tab.active {
-  background: linear-gradient(140deg, rgba(67, 222, 223, 0.38), rgba(255, 148, 63, 0.42));
-  border-color: rgba(255, 229, 192, 0.85);
+.menu-panel-select:focus-visible {
+  border-color: #f0a564;
+  box-shadow: 0 0 0 2px rgba(240, 165, 100, 0.35);
 }
 
 .menu-panel {
@@ -1306,6 +1327,46 @@ button {
   }
 }
 
+@media (max-width: 960px) and (orientation: portrait) {
+  .setup-card {
+    max-height: min(92svh, 760px);
+    overflow: auto;
+  }
+
+  .table-menu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .table-menu-card {
+    padding: 6px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  .table-menu-card img {
+    height: 52px;
+  }
+
+  .table-selected-badge {
+    font-size: 0.58rem;
+    padding: 1px 6px;
+  }
+
+  .table-menu-meta strong {
+    font-size: 0.78rem;
+    line-height: 1.1;
+  }
+
+  .table-menu-meta span {
+    display: none;
+  }
+
+  .selected-table-info {
+    font-size: 0.78rem;
+  }
+}
+
 @media (max-width: 680px) {
   body {
     --card-size: 32px;
@@ -1330,12 +1391,43 @@ button {
   }
 
   .table-menu-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .table-menu-card {
+    padding: 6px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  .table-menu-card img {
+    height: 44px;
+  }
+
+  .table-selected-badge {
+    font-size: 0.56rem;
+    padding: 1px 5px;
+  }
+
+  .table-menu-meta strong {
+    font-size: 0.72rem;
+    line-height: 1.05;
+  }
+
+  .table-menu-meta span {
+    display: none;
   }
 
   .setup-actions {
     display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
     gap: 8px;
+  }
+
+  .selected-table-info {
+    font-size: 0.74rem;
   }
 
   .game-board {
@@ -1402,6 +1494,11 @@ button {
     font-size: 0.5rem;
     padding: 0;
     gap: 2px;
+  }
+
+  .menu-panel-select {
+    font-size: 0.8rem;
+    padding: 7px 9px;
   }
 
   .community-cards {
