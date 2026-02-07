@@ -976,6 +976,7 @@ export const createAppUi = (engine) => {
     const toCall = Math.max(0, state.currentBet - player.roundBet);
     const canStandAfter =
       !player.standing &&
+      !player.responseOnly &&
       state.roundIndex < 4 &&
       ["call", "bet", "raise"].includes(pendingDecision.action);
 
