@@ -31,9 +31,12 @@ const actionOrder = {
 const BOT_TURN_DELAY_MS = 3000;
 const ACTION_LABEL_DURATION_MS = 3000;
 const WINNER_REVEAL_DELAY_MS = 3000;
-const SPEECH_RATE = 1;
+const SPEECH_RATE = 1.12;
 const SPEECH_PITCH = 1;
 const SPEECH_VOLUME = 1;
+const MAX_SPEECH_QUEUE = 4;
+const DEFAULT_SPEECH_TTL_MS = 4200;
+const TURN_SPEECH_TTL_MS = 5000;
 
 export const createAppUi = (engine) => {
   const splashScreen = document.querySelector("#splashScreen");
@@ -96,6 +99,7 @@ export const createAppUi = (engine) => {
   let drainedPotHandNumber = null;
   let lastSpokenWinnerHand = null;
   let lastSpokenRoundKey = "";
+  let lastSpokenTurnKey = "";
   const speechSupported =
     typeof window !== "undefined" &&
     "speechSynthesis" in window &&
@@ -104,6 +108,7 @@ export const createAppUi = (engine) => {
   let speechUnlocked = false;
   let speechVoice = null;
   let speechIsRunning = false;
+  let currentSpeechLine = "";
   const speechQueue = [];
 
   const getTutorialSlides = () =>
@@ -147,11 +152,24 @@ export const createAppUi = (engine) => {
     if (!speechSupported || !synth || !speechUnlocked || speechIsRunning) {
       return;
     }
-    const nextLine = speechQueue.shift();
-    if (!nextLine) {
+    const now = Date.now();
+    let nextEntry = null;
+    while (speechQueue.length > 0 && !nextEntry) {
+      const candidate = speechQueue.shift();
+      if (!candidate?.line) {
+        continue;
+      }
+      if (candidate.ttlMs > 0 && now - candidate.createdAt > candidate.ttlMs) {
+        continue;
+      }
+      nextEntry = candidate;
+    }
+    if (!nextEntry) {
       return;
     }
     speechIsRunning = true;
+    const nextLine = nextEntry.line;
+    currentSpeechLine = nextLine;
     const utterance = new SpeechSynthesisUtterance(nextLine);
     if (speechVoice) {
       utterance.voice = speechVoice;
@@ -161,24 +179,61 @@ export const createAppUi = (engine) => {
     utterance.volume = SPEECH_VOLUME;
     utterance.onend = () => {
       speechIsRunning = false;
+      currentSpeechLine = "";
       speakNextQueuedLine();
     };
     utterance.onerror = () => {
       speechIsRunning = false;
+      currentSpeechLine = "";
       speakNextQueuedLine();
     };
     synth.speak(utterance);
   };
 
-  const queueSpeechLine = (line, priority = false) => {
+  const queueSpeechLine = (line, options = {}) => {
+    const {
+      priority = false,
+      replaceQueue = false,
+      interrupt = false,
+      ttlMs = DEFAULT_SPEECH_TTL_MS,
+    } = options;
     const cleaned = normalizeSpeechLine(line);
-    if (!speechSupported || !cleaned) {
+    if (!speechSupported || !speechUnlocked || !cleaned) {
       return;
     }
+
+    if (interrupt && synth) {
+      synth.cancel();
+      speechQueue.length = 0;
+      speechIsRunning = false;
+      currentSpeechLine = "";
+    }
+
+    if (replaceQueue) {
+      speechQueue.length = 0;
+    }
+
+    if (cleaned === currentSpeechLine || speechQueue.some((entry) => entry.line === cleaned)) {
+      speakNextQueuedLine();
+      return;
+    }
+
+    const queueEntry = {
+      line: cleaned,
+      createdAt: Date.now(),
+      ttlMs: Math.max(0, Number(ttlMs) || 0),
+    };
+
     if (priority) {
-      speechQueue.unshift(cleaned);
-    } else if (speechQueue[speechQueue.length - 1] !== cleaned) {
-      speechQueue.push(cleaned);
+      speechQueue.unshift(queueEntry);
+      if (speechQueue.length > MAX_SPEECH_QUEUE) {
+        speechQueue.length = MAX_SPEECH_QUEUE;
+      }
+    } else {
+      speechQueue.push(queueEntry);
+      if (speechQueue.length > MAX_SPEECH_QUEUE) {
+        speechQueue.splice(0, speechQueue.length - MAX_SPEECH_QUEUE);
+      }
     }
     speakNextQueuedLine();
   };
@@ -189,6 +244,7 @@ export const createAppUi = (engine) => {
       synth.cancel();
     }
     speechIsRunning = false;
+    currentSpeechLine = "";
   };
 
   const unlockSpeech = () => {
@@ -488,6 +544,7 @@ export const createAppUi = (engine) => {
     clearChipLayer();
     lastRenderedPot = 0;
     drainedPotHandNumber = null;
+    lastSpokenTurnKey = "";
     engine.setPlayerName(playerNameInput?.value || "PLAYER");
     engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
     engine.startNewHand();
@@ -726,7 +783,12 @@ export const createAppUi = (engine) => {
 
     if (lastSpokenWinnerHand !== state.handNumber) {
       lastSpokenWinnerHand = state.handNumber;
-      queueSpeechLine(getWinnerVoiceLine(state), true);
+      queueSpeechLine(getWinnerVoiceLine(state), {
+        priority: true,
+        replaceQueue: true,
+        interrupt: true,
+        ttlMs: 0,
+      });
     }
   };
 
@@ -776,7 +838,6 @@ export const createAppUi = (engine) => {
         changes.push({ player, action: player.lastAction, previous: knownAction || "" });
         if (gameStarted) {
           queueActionBanner(player.id, player.lastAction);
-          queueSpeechLine(getActionVoiceLine(player.name, player.lastAction));
         }
       }
 
@@ -850,6 +911,28 @@ export const createAppUi = (engine) => {
       playerLayer.appendChild(seat);
     });
     return changes;
+  };
+
+  const buildActionSpeechLines = (changes) => {
+    if (!gameStarted || !changes.length) {
+      return [];
+    }
+    return changes
+      .map((change) => getActionVoiceLine(change.player.name, change.action))
+      .filter(Boolean)
+      .slice(-2);
+  };
+
+  const queueActionSpeechLines = (lines) => {
+    if (!lines.length) {
+      return;
+    }
+    lines.forEach((line, index) => {
+      queueSpeechLine(line, {
+        replaceQueue: index === 0,
+        ttlMs: DEFAULT_SPEECH_TTL_MS,
+      });
+    });
   };
 
   const createActionButton = (label, onClick, className = "", disabled = false) => {
@@ -1072,6 +1155,7 @@ export const createAppUi = (engine) => {
       lastRenderedHandNumber = state.handNumber;
       lastKnownActions.clear();
       lastSpokenRoundKey = "";
+      lastSpokenTurnKey = "";
       lastRenderedPot = 0;
       lastPayoutAnimationHand = null;
       drainedPotHandNumber = null;
@@ -1082,7 +1166,6 @@ export const createAppUi = (engine) => {
       const roundKey = `${state.handNumber}-${state.roundIndex}`;
       if (lastSpokenRoundKey !== roundKey) {
         lastSpokenRoundKey = roundKey;
-        queueSpeechLine(`${state.roundName} round.`);
       }
     }
 
@@ -1097,11 +1180,30 @@ export const createAppUi = (engine) => {
 
     renderCommunity(state);
     const actionChanges = renderPlayers(state);
+    const actionSpeechLines = buildActionSpeechLines(actionChanges);
+    queueActionSpeechLines(actionSpeechLines);
     renderPotChipStack(drainedPotHandNumber === state.handNumber ? 0 : state.pot);
     renderWinnerBanner(state);
     renderStatusAndActions(state);
     renderLog(state);
     renderTutorial();
+
+    if (gameStarted && !state.handComplete && typeof state.currentTurnIndex === "number") {
+      const currentTurnPlayer = state.players[state.currentTurnIndex];
+      const turnKey = `${state.handNumber}-${state.roundIndex}-${state.currentTurnIndex}`;
+      if (currentTurnPlayer && lastSpokenTurnKey !== turnKey) {
+        lastSpokenTurnKey = turnKey;
+        if (currentTurnPlayer.isHuman) {
+          queueSpeechLine("Your turn.", {
+            ttlMs: TURN_SPEECH_TTL_MS,
+          });
+        } else {
+          queueSpeechLine(`${currentTurnPlayer.name} to act.`, {
+            ttlMs: TURN_SPEECH_TTL_MS,
+          });
+        }
+      }
+    }
 
     if (gameStarted && !state.handComplete && potDelta > 0) {
       animatePotIncreaseFromChanges(actionChanges, potDelta);
@@ -1161,6 +1263,7 @@ export const createAppUi = (engine) => {
     clearPendingFlow();
     clearSpeechQueue();
     lastSpokenRoundKey = "";
+    lastSpokenTurnKey = "";
     clearChipLayer();
     lastRenderedPot = 0;
     lastPayoutAnimationHand = null;

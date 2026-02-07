@@ -64,7 +64,9 @@ button {
   z-index: 90;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #d6d7da, #bcbec3);
+  background:
+    linear-gradient(145deg, rgba(28, 32, 38, 0.52), rgba(20, 24, 31, 0.66)),
+    url("assets/images/BG.png") center / cover no-repeat fixed;
   opacity: 1;
 }
 
@@ -96,7 +98,8 @@ button {
   place-items: center;
   padding: 16px;
   background:
-    radial-gradient(circle at center, rgba(26, 42, 53, 0.3), rgba(8, 13, 20, 0.86));
+    radial-gradient(circle at center, rgba(18, 25, 34, 0.4), rgba(8, 13, 20, 0.78)),
+    url("assets/images/BG.png") center / cover no-repeat fixed;
 }
 
 .setup-overlay.hidden {
@@ -471,7 +474,10 @@ button {
   border-radius: 20px;
   padding: 0;
   position: relative;
-  background: linear-gradient(170deg, #d2d2d4, #bdbec1);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) 124px;
 }
