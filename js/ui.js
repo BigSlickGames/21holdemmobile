@@ -48,6 +48,7 @@ export const createAppUi = (engine) => {
   const tutorialCounter = document.querySelector("#tutorialCounter");
 
   const newHandButton = document.querySelector("#newHandButton");
+  const tableTitle = document.querySelector("#tableTitle");
   const roundBadge = document.querySelector("#roundBadge");
   const potBadge = document.querySelector("#potBadge");
   const betBadge = document.querySelector("#betBadge");
@@ -498,6 +499,9 @@ export const createAppUi = (engine) => {
   const render = () => {
     const state = engine.getVisibleState();
 
+    if (tableTitle) {
+      tableTitle.textContent = `21 HOLD'EM ${state.smallBlindAmount}/${state.bigBlindAmount}`;
+    }
     roundBadge.textContent = `Round ${state.roundName}`;
     potBadge.textContent = `Pot ${state.pot}`;
     betBadge.textContent = `Blinds ${state.smallBlindAmount}/${state.bigBlindAmount}`;

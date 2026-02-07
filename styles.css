@@ -31,8 +31,8 @@ body {
   margin: 0;
   font-family: "Segoe UI", "Trebuchet MS", "Gill Sans", sans-serif;
   color: var(--text);
-  --card-size: 52px;
-  --community-card-size: 66px;
+  --card-size: 42px;
+  --community-card-size: 54px;
   background:
     radial-gradient(circle at 12% 16%, rgba(255, 147, 64, 0.33), transparent 42%),
     radial-gradient(circle at 88% 14%, rgba(61, 218, 220, 0.3), transparent 35%),
@@ -223,7 +223,7 @@ button {
 
 .menu-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -232,6 +232,8 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.26);
   background: rgba(255, 255, 255, 0.09);
   color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.1;
   padding: 8px 10px;
   cursor: pointer;
 }
@@ -335,37 +337,61 @@ button {
   color: var(--muted);
 }
 
+.menu-subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
 .workspace {
   min-height: 0;
-  padding: 0 12px 12px;
-  display: grid;
-  gap: 12px;
-  grid-template-columns: minmax(0, 1fr) 320px;
-}
-
-.table-stage {
-  min-height: 560px;
-  border-radius: 22px;
   padding: 14px;
-  position: relative;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(9, 16, 23, 0.28), rgba(8, 14, 20, 0.55)),
-    url("assets/images/table.png") center / cover no-repeat;
+  display: grid;
+  place-items: center;
 }
 
-.table-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, transparent 28%, rgba(5, 8, 12, 0.35) 100%);
-  pointer-events: none;
+.game-board {
+  width: min(1080px, 96vw);
+  min-height: min(88vh, 760px);
+  border-radius: 20px;
+  padding: 0;
+  position: relative;
+  background: linear-gradient(170deg, #d2d2d4, #bdbec1);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
 }
 
-.table-head {
-  position: relative;
-  z-index: 2;
+.board-header {
+  margin: 0;
+  min-height: 84px;
+  border-radius: 20px 20px 8px 8px;
+  border: 2px solid #da7424;
+  background: linear-gradient(180deg, #6b6c70, #4f5154);
+  display: grid;
+  grid-template-columns: 120px 1fr 120px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.board-header h1 {
+  margin: 0;
+  text-align: center;
+  color: #f0f3f6;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  font-size: clamp(1.35rem, 4vw, 3.1rem);
+}
+
+.board-header .btn {
+  justify-self: center;
+  min-width: 92px;
+}
+
+.board-meta {
   display: flex;
   justify-content: center;
+  align-items: center;
+  padding: 8px 8px 2px;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -385,18 +411,42 @@ button {
   border-color: rgba(255, 214, 159, 0.84);
 }
 
-.community-cards {
+.table-stage {
+  position: relative;
+  margin: 6px 10px 0;
+  border-radius: 14px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.table-felt {
   position: absolute;
   left: 50%;
-  top: 46%;
+  top: 56%;
+  width: min(92%, 860px);
+  height: min(50%, 280px);
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 40%, #4f9df6 0%, #2f72cd 35%, #1b4f96 76%, #123f79 100%);
+  border: 14px solid #7b3a08;
+  box-shadow:
+    0 0 0 4px rgba(255, 173, 119, 0.75),
+    inset 0 0 26px rgba(190, 146, 255, 0.45),
+    0 24px 34px rgba(0, 0, 0, 0.42);
+}
+
+.community-cards {
+  position: absolute;
+  left: 37%;
+  top: 55%;
   transform: translate(-50%, -50%);
   z-index: 2;
   display: flex;
   gap: 8px;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(12, 18, 25, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .player-layer {
@@ -407,7 +457,7 @@ button {
 
 .player-seat {
   position: absolute;
-  width: clamp(150px, 19vw, 210px);
+  width: clamp(98px, 11vw, 132px);
   transition: transform 0.18s ease, filter 0.18s ease;
 }
 
@@ -432,9 +482,9 @@ button {
 }
 
 .profile-header-band strong {
-  font-size: clamp(0.76rem, 1.9vw, 1.16rem);
+  font-size: clamp(0.58rem, 0.95vw, 0.88rem);
   font-weight: 500;
-  letter-spacing: 1px;
+  letter-spacing: 0.4px;
   color: #eef2f6;
 }
 
@@ -454,7 +504,7 @@ button {
 .profile-role-badge {
   top: 0%;
   right: 0%;
-  font-size: clamp(0.7rem, 1.6vw, 1rem);
+  font-size: clamp(0.52rem, 0.85vw, 0.74rem);
 }
 
 .profile-body {
@@ -463,8 +513,8 @@ button {
   right: 8%;
   top: 19%;
   bottom: 9%;
-  border-radius: 18px;
-  border: 3px solid #e27622;
+  border-radius: 14px;
+  border: 2px solid #e27622;
   background: linear-gradient(170deg, rgba(255, 255, 255, 0.07), rgba(12, 16, 22, 0.28));
   display: flex;
   align-items: center;
@@ -476,16 +526,16 @@ button {
 .profile-total-badge {
   bottom: 0%;
   right: 0%;
-  font-size: clamp(1.05rem, 3.5vw, 1.95rem);
+  font-size: clamp(0.84rem, 1.8vw, 1.48rem);
 }
 
 .profile-footer {
-  margin-top: 6px;
-  padding: 0 8px;
+  margin-top: 4px;
+  padding: 0 2px;
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 0.76rem;
+  gap: 4px;
+  font-size: 0.58rem;
   color: var(--muted);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
 }
@@ -505,7 +555,7 @@ button {
 
 .seat-cards {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
@@ -513,7 +563,7 @@ button {
 }
 
 .profile-body .card-tile {
-  width: min(var(--card-size), 46%);
+  width: min(var(--card-size), 44%);
   height: auto;
   aspect-ratio: 1 / 1;
 }
@@ -553,45 +603,47 @@ button {
 
 .seat-bottom {
   left: 50%;
-  bottom: 10px;
+  bottom: 7%;
   transform: translateX(-50%);
 }
 
 .seat-top-left {
-  left: 20px;
-  top: 84px;
+  left: 11%;
+  top: 12%;
 }
 
 .seat-top-right {
-  right: 20px;
-  top: 84px;
+  right: 11%;
+  top: 12%;
 }
 
-.side-stack {
-  min-height: 0;
+.action-dock {
+  padding: 8px 14px 14px;
   display: grid;
-  grid-template-rows: auto 1fr;
-  gap: 12px;
+  justify-items: center;
+  gap: 8px;
 }
 
-.status-panel,
-.log-panel {
-  border-radius: 20px;
-  padding: 14px;
-  display: grid;
-  gap: 11px;
+.action-dock .turn-prompt {
+  text-align: center;
+  color: #5e6269;
+  min-height: 24px;
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
-.status-panel h2,
-.log-panel h2 {
-  font-size: 1.06rem;
-  letter-spacing: 0.3px;
+.action-buttons {
+  justify-content: center;
+  max-width: 640px;
 }
 
-.turn-prompt {
-  color: var(--muted);
-  line-height: 1.4;
-  min-height: 42px;
+.wager-tray {
+  justify-items: center;
+}
+
+.menu-log-list {
+  max-height: 52vh;
+  padding-right: 4px;
 }
 
 .action-buttons,
@@ -640,10 +692,6 @@ button {
   color: var(--muted);
 }
 
-.log-panel {
-  min-height: 0;
-}
-
 .log-list {
   margin: 0;
   padding-left: 18px;
@@ -658,104 +706,139 @@ button {
 
 @media (max-width: 1140px) {
   .workspace {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(510px, 60vh) auto;
+    padding: 10px;
   }
 
-  .side-stack {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto;
-  }
-
-  .log-list {
-    max-height: 220px;
+  .game-board {
+    width: 98vw;
+    min-height: min(92vh, 760px);
   }
 }
 
 @media (max-width: 820px) {
   body {
-    --card-size: 46px;
-    --community-card-size: 58px;
+    --card-size: 38px;
+    --community-card-size: 48px;
   }
 
-  .top-bar {
-    padding: 10px;
+  .board-header {
+    min-height: 70px;
+    grid-template-columns: 90px 1fr 90px;
+    padding: 6px;
   }
 
-  .btn.primary {
-    padding: 8px 10px;
+  .board-header .btn {
+    min-width: 72px;
+    padding: 6px 8px;
   }
 
   .table-stage {
-    min-height: 560px;
+    min-height: 430px;
   }
 
   .player-seat {
-    width: clamp(130px, 30vw, 178px);
+    width: clamp(90px, 18vw, 120px);
   }
 
-  .seat-top-left,
+  .seat-top-left {
+    left: 7%;
+    top: 12%;
+  }
+
   .seat-top-right {
-    top: 94px;
+    right: 7%;
+    top: 12%;
+  }
+
+  .seat-bottom {
+    bottom: 10%;
   }
 
   .community-cards {
-    top: 47.5%;
+    left: 39%;
+    top: 56%;
   }
 }
 
 @media (max-width: 680px) {
   body {
-    --card-size: 42px;
-    --community-card-size: 52px;
-  }
-
-  .top-bar {
-    margin: 8px;
-    border-radius: 14px;
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: stretch;
-    text-align: center;
+    --card-size: 32px;
+    --community-card-size: 42px;
   }
 
   .workspace {
-    padding: 0 8px 8px;
-    gap: 8px;
-    grid-template-rows: minmax(560px, 62vh) auto;
+    padding: 6px;
   }
 
-  .side-stack {
-    grid-template-columns: 1fr;
+  .game-board {
+    min-height: min(92vh, 640px);
+  }
+
+  .board-header {
+    min-height: 58px;
+    grid-template-columns: 74px 1fr 74px;
+    border-radius: 14px 14px 6px 6px;
+  }
+
+  .board-header .btn {
+    min-width: 62px;
+    padding: 5px 7px;
+    font-size: 0.72rem;
+  }
+
+  .board-meta {
+    gap: 6px;
+    padding-top: 6px;
+  }
+
+  .badge {
+    font-size: 0.66rem;
+    padding: 4px 7px;
+  }
+
+  .table-stage {
+    min-height: 360px;
+    margin: 4px 6px 0;
+  }
+
+  .table-felt {
+    width: 94%;
+    height: 46%;
+    border-width: 10px;
+    box-shadow:
+      0 0 0 3px rgba(255, 173, 119, 0.72),
+      inset 0 0 18px rgba(190, 146, 255, 0.45),
+      0 18px 24px rgba(0, 0, 0, 0.38);
   }
 
   .player-seat {
-    width: min(43%, 156px);
+    width: clamp(72px, 17vw, 100px);
   }
 
   .seat-top-left {
-    left: 8px;
-    top: 108px;
+    left: 6%;
+    top: 11%;
   }
 
   .seat-top-right {
-    right: 8px;
-    top: 108px;
+    right: 6%;
+    top: 11%;
   }
 
   .seat-bottom {
-    bottom: 6px;
+    bottom: 8%;
   }
 
   .profile-footer {
-    font-size: 0.62rem;
-    padding: 0 2px;
+    font-size: 0.5rem;
+    padding: 0;
+    gap: 2px;
   }
 
   .community-cards {
-    top: 49%;
-    gap: 6px;
-    padding: 8px;
+    left: 40%;
+    top: 57%;
+    gap: 4px;
   }
 
   .menu-drawer {

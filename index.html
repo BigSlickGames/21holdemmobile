@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=19" />
+    <link rel="stylesheet" href="styles.css?v=20" />
   </head>
   <body>
     <div id="lobbyOverlay" class="lobby-overlay">
@@ -32,15 +32,6 @@
     </div>
 
     <div class="app-shell">
-      <header class="top-bar glass">
-        <button id="menuToggle" class="btn ghost" type="button">Menu</button>
-        <div class="top-title">
-          <p class="kicker">21 Hold'em</p>
-          <h1>3-Player Table</h1>
-        </div>
-        <button id="newHandButton" class="btn primary" type="button">Deal Next Hand</button>
-      </header>
-
       <aside id="menuDrawer" class="menu-drawer glass" aria-label="Main menu">
         <div class="menu-header">
           <h2>Table Menu</h2>
@@ -51,6 +42,7 @@
           <button class="menu-tab active" type="button" data-panel="overview">Overview</button>
           <button class="menu-tab" type="button" data-panel="tutorial">Tutorial</button>
           <button class="menu-tab" type="button" data-panel="rules">Rules</button>
+          <button class="menu-tab" type="button" data-panel="hands">Hands</button>
         </div>
 
         <section class="menu-panel active" data-panel-content="overview">
@@ -89,37 +81,42 @@
             <li>Ties split the pot equally.</li>
           </ul>
         </section>
+
+        <section class="menu-panel" data-panel-content="hands">
+          <h3 class="menu-subtitle">Hand Log</h3>
+          <ul id="logList" class="log-list menu-log-list"></ul>
+        </section>
       </aside>
 
       <main class="workspace">
-        <section class="table-stage glass" aria-label="Game table">
-          <div class="table-overlay"></div>
-          <div class="table-head">
+        <section class="game-board glass" aria-label="Game table">
+          <header class="board-header">
+            <button id="menuToggle" class="btn ghost mini" type="button">Menu</button>
+            <h1 id="tableTitle">21 HOLD'EM 1/2</h1>
+            <button id="newHandButton" class="btn primary mini" type="button">Deal</button>
+          </header>
+
+          <div class="board-meta">
             <span id="roundBadge" class="badge">Round Pre-Action</span>
             <span id="potBadge" class="badge strong">Pot 0</span>
-            <span id="betBadge" class="badge">To Call 0</span>
+            <span id="betBadge" class="badge">Blinds 1/2</span>
           </div>
 
-          <div id="communityCards" class="community-cards" aria-label="Community cards"></div>
-          <div id="playerLayer" class="player-layer" aria-live="polite"></div>
-        </section>
+          <div class="table-stage">
+            <div class="table-felt"></div>
+            <div id="communityCards" class="community-cards" aria-label="Community cards"></div>
+            <div id="playerLayer" class="player-layer" aria-live="polite"></div>
+          </div>
 
-        <aside class="side-stack">
-          <section class="status-panel glass">
-            <h2>Action</h2>
+          <section class="action-dock">
             <p id="turnPrompt" class="turn-prompt">Setting up hand...</p>
             <div id="actionButtons" class="action-buttons"></div>
             <div id="wagerTray" class="wager-tray"></div>
           </section>
-
-          <section class="log-panel glass">
-            <h2>Hand Log</h2>
-            <ul id="logList" class="log-list"></ul>
-          </section>
-        </aside>
+        </section>
       </main>
     </div>
 
-    <script type="module" src="app.js?v=19"></script>
+    <script type="module" src="app.js?v=20"></script>
   </body>
 </html>
