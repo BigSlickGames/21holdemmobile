@@ -407,6 +407,27 @@ export class Holdem21Engine {
 
     const toCall = this.getToCall(player);
     const actingIndex = this.currentTurnIndex;
+    const standAfterRequested =
+      Boolean(payload.standAfter) &&
+      ["call", "bet", "raise"].includes(action) &&
+      !player.standing &&
+      this.roundIndex < ROUND_SEQUENCE.length - 1;
+
+    const lockStanding = (followUp = false) => {
+      if (player.standing) {
+        return;
+      }
+      player.standing = true;
+      player.lockedCommunityCount = this.community.length;
+      const total = this.getPlayerTotal(player);
+      if (followUp) {
+        player.lastAction = `${player.lastAction} + Stand`;
+        this.logEvent(`${player.name} stands after ${action} and locks ${total}.`);
+        return;
+      }
+      player.lastAction = `Stand (${total})`;
+      this.logEvent(`${player.name} stands on ${total}.`);
+    };
 
     if (action === "fold") {
       player.folded = true;
@@ -429,11 +450,8 @@ export class Holdem21Engine {
     }
 
     if (action === "stand") {
-      player.standing = true;
-      player.lockedCommunityCount = this.community.length;
       player.hasActed = true;
-      player.lastAction = `Stand (${this.getPlayerTotal(player)})`;
-      this.logEvent(`${player.name} stands on ${this.getPlayerTotal(player)}.`);
+      lockStanding(false);
     }
 
     if (action === "bet") {
@@ -492,6 +510,10 @@ export class Holdem21Engine {
           drawn ? cardDisplayName(drawn) : "a card"
         }.`
       );
+    }
+
+    if (standAfterRequested && !player.folded && !player.busted) {
+      lockStanding(true);
     }
 
     this.refreshBusts();

@@ -18,6 +18,10 @@ const actionLabel = {
 };
 
 export const createAppUi = (engine) => {
+  const lobbyOverlay = document.querySelector("#lobbyOverlay");
+  const startGameButton = document.querySelector("#startGameButton");
+  const tableSizeButtons = document.querySelectorAll(".table-size-btn");
+
   const menuToggle = document.querySelector("#menuToggle");
   const closeMenu = document.querySelector("#closeMenu");
   const menuDrawer = document.querySelector("#menuDrawer");
@@ -48,6 +52,10 @@ export const createAppUi = (engine) => {
   let activeTutorialModule = tutorialModules[0].id;
   let tutorialCursor = 0;
   let pendingWagerAction = null;
+  let pendingDecision = null;
+  let selectedTableSize =
+    Array.from(tableSizeButtons).find((button) => button.classList.contains("active"))?.dataset
+      .size || "standard";
   let botTimer = null;
 
   const getTutorialSlides = () =>
@@ -60,6 +68,19 @@ export const createAppUi = (engine) => {
     });
     menuPanels.forEach((panel) => {
       panel.classList.toggle("active", panel.dataset.panelContent === panelId);
+    });
+  };
+
+  const clearPendingFlow = () => {
+    pendingWagerAction = null;
+    pendingDecision = null;
+  };
+
+  const applyTableSize = (size) => {
+    selectedTableSize = size;
+    document.body.dataset.tableSize = size;
+    tableSizeButtons.forEach((button) => {
+      button.classList.toggle("active", button.dataset.size === size);
     });
   };
 
@@ -234,15 +255,84 @@ export const createAppUi = (engine) => {
     return button;
   };
 
+  const runPendingDecision = (standAfter = false) => {
+    if (!pendingDecision) {
+      return;
+    }
+    const payload = {};
+    if (typeof pendingDecision.amount === "number") {
+      payload.amount = pendingDecision.amount;
+    }
+    if (standAfter) {
+      payload.standAfter = true;
+    }
+    engine.performHumanAction(pendingDecision.action, payload);
+    clearPendingFlow();
+    render();
+  };
+
+  const renderPendingDecision = (state, player) => {
+    if (!pendingDecision) {
+      return false;
+    }
+
+    wagerTray.innerHTML = "";
+    const toCall = Math.max(0, state.currentBet - player.roundBet);
+    const canStandAfter =
+      !player.standing &&
+      state.roundIndex < 4 &&
+      ["call", "bet", "raise"].includes(pendingDecision.action);
+
+    const decisionText =
+      pendingDecision.action === "call"
+        ? `Call ${toCall} and choose how to proceed.`
+        : pendingDecision.action === "bet"
+          ? `Bet ${pendingDecision.cost} and choose how to proceed.`
+          : `Raise (total ${pendingDecision.cost}) and choose how to proceed.`;
+
+    const title = document.createElement("p");
+    title.className = "wager-title";
+    title.textContent = decisionText;
+    wagerTray.appendChild(title);
+
+    const row = document.createElement("div");
+    row.className = "decision-buttons";
+
+    row.appendChild(
+      createActionButton("Confirm", () => {
+        runPendingDecision(false);
+      }, "primary")
+    );
+
+    const standButton = createActionButton("Stand", () => {
+      runPendingDecision(true);
+    });
+    standButton.disabled = !canStandAfter;
+    if (!canStandAfter) {
+      standButton.title = "Stand is not available in this spot.";
+    }
+    row.appendChild(standButton);
+
+    row.appendChild(
+      createActionButton("Cancel", () => {
+        clearPendingFlow();
+        render();
+      }, "ghost")
+    );
+
+    wagerTray.appendChild(row);
+    return true;
+  };
+
   const renderWagerOptions = (player) => {
     wagerTray.innerHTML = "";
-    if (!pendingWagerAction) {
+    if (!pendingWagerAction || pendingDecision) {
       return;
     }
 
     const options = engine.getWagerOptions(pendingWagerAction, player);
     if (options.length === 0) {
-      pendingWagerAction = null;
+      clearPendingFlow();
       return;
     }
 
@@ -256,7 +346,11 @@ export const createAppUi = (engine) => {
     row.className = "wager-buttons";
     options.forEach((option) => {
       const button = createActionButton(`${option.label} (${option.cost})`, () => {
-        engine.performHumanAction(pendingWagerAction, { amount: option.amount });
+        pendingDecision = {
+          action: pendingWagerAction,
+          amount: option.amount,
+          cost: option.cost,
+        };
         pendingWagerAction = null;
         render();
       });
@@ -266,7 +360,7 @@ export const createAppUi = (engine) => {
 
     wagerTray.appendChild(
       createActionButton("Cancel", () => {
-        pendingWagerAction = null;
+        clearPendingFlow();
         render();
       }, "ghost")
     );
@@ -277,30 +371,59 @@ export const createAppUi = (engine) => {
     wagerTray.innerHTML = "";
 
     if (state.handComplete) {
+      clearPendingFlow();
       turnPrompt.textContent = `${state.handResult} Press "Deal Next Hand" to continue.`;
       return;
     }
 
     const currentPlayer = state.players[state.currentTurnIndex];
     if (!currentPlayer) {
+      clearPendingFlow();
       turnPrompt.textContent = "Resolving hand state...";
       return;
     }
 
     if (!currentPlayer.isHuman) {
+      clearPendingFlow();
       turnPrompt.textContent = `${currentPlayer.name} is thinking...`;
       return;
     }
 
-    turnPrompt.textContent = `Your turn in ${state.roundName}. Pot: ${state.pot}.`;
     const actions = engine.getAvailableActions();
+    if (pendingDecision && !actions.includes(pendingDecision.action)) {
+      pendingDecision = null;
+    }
+    if (pendingWagerAction && !actions.includes(pendingWagerAction)) {
+      pendingWagerAction = null;
+    }
+
+    if (pendingDecision) {
+      turnPrompt.textContent = "Confirm your action: Confirm, Stand, or Cancel.";
+    } else if (pendingWagerAction) {
+      turnPrompt.textContent = "Pick a wager size to continue.";
+    } else {
+      turnPrompt.textContent = `Your turn in ${state.roundName}. Pot: ${state.pot}.`;
+    }
 
     actions.forEach((action) => {
       if (action === "bet" || action === "raise") {
         actionButtons.appendChild(
           createActionButton(actionLabel[action], () => {
             pendingWagerAction = action;
-            renderWagerOptions(currentPlayer);
+            pendingDecision = null;
+            render();
+          })
+        );
+        return;
+      }
+
+      if (action === "call") {
+        const toCall = Math.max(0, state.currentBet - currentPlayer.roundBet);
+        actionButtons.appendChild(
+          createActionButton(actionLabel[action], () => {
+            pendingDecision = { action: "call", cost: toCall };
+            pendingWagerAction = null;
+            render();
           })
         );
         return;
@@ -308,14 +431,16 @@ export const createAppUi = (engine) => {
 
       actionButtons.appendChild(
         createActionButton(actionLabel[action], () => {
-          pendingWagerAction = null;
+          clearPendingFlow();
           engine.performHumanAction(action);
           render();
         })
       );
     });
 
-    renderWagerOptions(currentPlayer);
+    if (!renderPendingDecision(state, currentPlayer)) {
+      renderWagerOptions(currentPlayer);
+    }
   };
 
   const renderLog = (state) => {
@@ -380,11 +505,22 @@ export const createAppUi = (engine) => {
   });
 
   newHandButton.addEventListener("click", () => {
-    pendingWagerAction = null;
+    clearPendingFlow();
     engine.startNewHand();
     render();
   });
 
+  tableSizeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      applyTableSize(button.dataset.size);
+    });
+  });
+
+  startGameButton.addEventListener("click", () => {
+    lobbyOverlay.classList.add("hidden");
+  });
+
+  applyTableSize(selectedTableSize);
   setMenuPanel(activeMenuPanel);
   renderTutorial();
   render();

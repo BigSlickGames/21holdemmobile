@@ -4,9 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=17" />
+    <link rel="stylesheet" href="styles.css?v=18" />
   </head>
   <body>
+    <div id="lobbyOverlay" class="lobby-overlay">
+      <section class="lobby-card glass" aria-label="Game lobby">
+        <p class="lobby-kicker">21 Hold'em v1.1</p>
+        <h2>Choose Your Table Size</h2>
+        <p class="lobby-copy">
+          Pick the layout scale for your device before you start the hand.
+        </p>
+        <div id="tableSizeOptions" class="table-size-options">
+          <button class="table-size-btn" type="button" data-size="compact">
+            Compact
+          </button>
+          <button class="table-size-btn active" type="button" data-size="standard">
+            Standard
+          </button>
+          <button class="table-size-btn" type="button" data-size="large">
+            Large
+          </button>
+        </div>
+        <button id="startGameButton" class="btn primary lobby-start" type="button">
+          Enter Table
+        </button>
+      </section>
+    </div>
+
     <div class="app-shell">
       <header class="top-bar glass">
         <button id="menuToggle" class="btn ghost" type="button">Menu</button>
@@ -96,6 +120,6 @@
       </main>
     </div>
 
-    <script type="module" src="app.js?v=17"></script>
+    <script type="module" src="app.js?v=18"></script>
   </body>
 </html>
