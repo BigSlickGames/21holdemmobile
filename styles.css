@@ -65,8 +65,7 @@ button {
   z-index: 90;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at center, rgba(255, 162, 88, 0.18), rgba(7, 12, 18, 0.97));
+  background: linear-gradient(180deg, #d6d7da, #bcbec3);
   opacity: 1;
 }
 
@@ -185,6 +184,16 @@ button {
   object-fit: cover;
 }
 
+.table-selected-badge {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: var(--muted);
+  background: rgba(0, 0, 0, 0.22);
+}
+
 .table-menu-meta {
   display: grid;
   gap: 2px;
@@ -206,6 +215,13 @@ button {
 .table-menu-card.active {
   background: linear-gradient(135deg, rgba(255, 176, 80, 0.42), rgba(50, 177, 190, 0.4));
   border-color: rgba(255, 224, 178, 0.92);
+  box-shadow: 0 0 0 2px rgba(255, 205, 142, 0.42);
+}
+
+.table-menu-card.active .table-selected-badge {
+  color: #fff7ea;
+  background: linear-gradient(135deg, rgba(255, 169, 69, 0.85), rgba(252, 109, 58, 0.84));
+  border-color: rgba(255, 225, 181, 0.94);
 }
 
 .setup-actions {

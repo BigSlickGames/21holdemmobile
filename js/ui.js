@@ -103,6 +103,9 @@ export const createAppUi = (engine) => {
       button.classList.toggle("active", preset.id === selectedTablePreset.id);
       button.innerHTML = `
         <img src="assets/images/table.png" alt="${preset.label} blind table" />
+        <span class="table-selected-badge">${
+          preset.id === selectedTablePreset.id ? "Selected" : "Select"
+        }</span>
         <div class="table-menu-meta">
           <strong>${preset.label}</strong>
           <span>Min buy-in ${preset.bigBlind * MIN_BUYIN_MULTIPLIER}</span>
@@ -119,6 +122,9 @@ export const createAppUi = (engine) => {
       selectedTableInfo.textContent = `Selected table: ${selectedTablePreset.label} | Min buy-in ${
         selectedTablePreset.bigBlind * MIN_BUYIN_MULTIPLIER
       }`;
+    }
+    if (startGameButton) {
+      startGameButton.textContent = `Join ${selectedTablePreset.label}`;
     }
   };
 
