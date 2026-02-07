@@ -4,25 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=19" />
   </head>
   <body>
     <div id="lobbyOverlay" class="lobby-overlay">
       <section class="lobby-card glass" aria-label="Game lobby">
         <p class="lobby-kicker">21 Hold'em v1.1</p>
-        <h2>Choose Your Table Size</h2>
+        <h2>Choose Blind Size</h2>
         <p class="lobby-copy">
-          Pick the layout scale for your device before you start the hand.
+          Pick the blind structure before you sit down.
         </p>
-        <div id="tableSizeOptions" class="table-size-options">
-          <button class="table-size-btn" type="button" data-size="compact">
-            Compact
+        <div id="blindSizeOptions" class="blind-size-options">
+          <button class="blind-size-btn active" type="button" data-sb="1" data-bb="2">
+            1 / 2
           </button>
-          <button class="table-size-btn active" type="button" data-size="standard">
-            Standard
+          <button class="blind-size-btn" type="button" data-sb="2" data-bb="4">
+            2 / 4
           </button>
-          <button class="table-size-btn" type="button" data-size="large">
-            Large
+          <button class="blind-size-btn" type="button" data-sb="5" data-bb="10">
+            5 / 10
           </button>
         </div>
         <button id="startGameButton" class="btn primary lobby-start" type="button">
@@ -120,6 +120,6 @@
       </main>
     </div>
 
-    <script type="module" src="app.js?v=18"></script>
+    <script type="module" src="app.js?v=19"></script>
   </body>
 </html>

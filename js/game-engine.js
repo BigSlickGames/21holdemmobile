@@ -18,7 +18,13 @@ const PLAYER_CONFIG = [
 ];
 
 export class Holdem21Engine {
-  constructor() {
+  constructor(options = {}) {
+    this.smallBlindAmount = Number(options.smallBlind) || SMALL_BLIND;
+    this.bigBlindAmount = Number(options.bigBlind) || BIG_BLIND;
+    if (this.bigBlindAmount <= this.smallBlindAmount) {
+      this.bigBlindAmount = this.smallBlindAmount * 2;
+    }
+
     this.players = PLAYER_CONFIG.map((config, index) =>
       this.createPlayer(index, config.name, config.isHuman)
     );
@@ -36,6 +42,17 @@ export class Holdem21Engine {
     this.handResult = "";
     this.log = [];
     this.startNewHand();
+  }
+
+  setBlindStructure(smallBlind, bigBlind) {
+    const sb = Math.max(1, Number(smallBlind) || SMALL_BLIND);
+    let bb = Math.max(sb + 1, Number(bigBlind) || BIG_BLIND);
+    if (bb <= sb) {
+      bb = sb * 2;
+    }
+    this.smallBlindAmount = sb;
+    this.bigBlindAmount = bb;
+    this.logEvent(`Blind level updated to ${sb}/${bb}.`);
   }
 
   createPlayer(id, name, isHuman) {
@@ -95,7 +112,7 @@ export class Holdem21Engine {
     this.log = [];
 
     this.players.forEach((player) => {
-      if (player.chips < BIG_BLIND) {
+      if (player.chips < this.bigBlindAmount) {
         player.chips = STARTING_STACK;
       }
       player.hand = [];
@@ -111,9 +128,11 @@ export class Holdem21Engine {
       player.lastAction = "Waiting";
     });
 
-    this.logEvent(`Hand ${this.handNumber} begins. Dealer: ${this.players[this.dealerIndex].name}.`);
-    this.postBlind(this.smallBlindIndex, SMALL_BLIND, "SB");
-    this.postBlind(this.bigBlindIndex, BIG_BLIND, "BB");
+    this.logEvent(
+      `Hand ${this.handNumber} begins. Dealer: ${this.players[this.dealerIndex].name}. Blinds ${this.smallBlindAmount}/${this.bigBlindAmount}.`
+    );
+    this.postBlind(this.smallBlindIndex, this.smallBlindAmount, "SB");
+    this.postBlind(this.bigBlindIndex, this.bigBlindAmount, "BB");
     this.currentBet = Math.max(...this.players.map((player) => player.roundBet));
 
     let dealIndex = this.nextIndex(this.bigBlindIndex);
@@ -169,6 +188,14 @@ export class Holdem21Engine {
 
   activeContenders() {
     return this.players.filter((player) => !player.folded && !player.busted);
+  }
+
+  allActivePlayersStanding() {
+    const contenders = this.activeContenders();
+    if (contenders.length === 0) {
+      return false;
+    }
+    return contenders.every((player) => player.standing);
   }
 
   maybeEndByLastPlayer() {
@@ -350,9 +377,9 @@ export class Holdem21Engine {
     }
 
     const presets = [
-      { label: "Min", base: BIG_BLIND },
-      { label: "1/2 Pot", base: Math.max(BIG_BLIND, Math.ceil(this.pot / 2)) },
-      { label: "Pot", base: Math.max(BIG_BLIND, this.pot) },
+      { label: "Min", base: this.bigBlindAmount },
+      { label: "1/2 Pot", base: Math.max(this.bigBlindAmount, Math.ceil(this.pot / 2)) },
+      { label: "Pot", base: Math.max(this.bigBlindAmount, this.pot) },
     ];
 
     const options = [];
@@ -375,7 +402,7 @@ export class Holdem21Engine {
         if (maxRaise <= 0) {
           return;
         }
-        const amount = Math.min(maxRaise, Math.max(BIG_BLIND, preset.base));
+        const amount = Math.min(maxRaise, Math.max(this.bigBlindAmount, preset.base));
         if (amount <= 0 || seen.has(`r-${amount}`)) {
           return;
         }
@@ -455,7 +482,7 @@ export class Holdem21Engine {
     }
 
     if (action === "bet") {
-      const wager = Math.max(BIG_BLIND, Number(payload.amount) || 0);
+      const wager = Math.max(this.bigBlindAmount, Number(payload.amount) || 0);
       const paid = this.applyContribution(player, wager);
       if (paid <= 0) {
         return { ok: false, reason: "Invalid bet amount." };
@@ -468,7 +495,7 @@ export class Holdem21Engine {
     }
 
     if (action === "raise") {
-      const raiseBy = Math.max(BIG_BLIND, Number(payload.amount) || 0);
+      const raiseBy = Math.max(this.bigBlindAmount, Number(payload.amount) || 0);
       const totalNeeded = toCall + raiseBy;
       const paid = this.applyContribution(player, totalNeeded);
       player.hasActed = true;
@@ -628,6 +655,12 @@ export class Holdem21Engine {
       return;
     }
 
+    if (this.allActivePlayersStanding()) {
+      this.logEvent("All remaining players are standing. Skipping to showdown.");
+      this.goToShowdown();
+      return;
+    }
+
     if (this.roundIndex >= ROUND_SEQUENCE.length - 1) {
       this.goToShowdown();
       return;
@@ -724,6 +757,8 @@ export class Holdem21Engine {
       handNumber: this.handNumber,
       roundIndex: this.roundIndex,
       roundName: ROUND_SEQUENCE[this.roundIndex],
+      smallBlindAmount: this.smallBlindAmount,
+      bigBlindAmount: this.bigBlindAmount,
       dealerIndex: this.dealerIndex,
       smallBlindIndex: this.smallBlindIndex,
       bigBlindIndex: this.bigBlindIndex,

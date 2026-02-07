@@ -17,10 +17,20 @@ const actionLabel = {
   double: "Double Down",
 };
 
+const actionOrder = {
+  check: 1,
+  call: 1,
+  bet: 2,
+  raise: 2,
+  stand: 3,
+  double: 4,
+  fold: 5,
+};
+
 export const createAppUi = (engine) => {
   const lobbyOverlay = document.querySelector("#lobbyOverlay");
   const startGameButton = document.querySelector("#startGameButton");
-  const tableSizeButtons = document.querySelectorAll(".table-size-btn");
+  const blindSizeButtons = document.querySelectorAll(".blind-size-btn");
 
   const menuToggle = document.querySelector("#menuToggle");
   const closeMenu = document.querySelector("#closeMenu");
@@ -53,9 +63,18 @@ export const createAppUi = (engine) => {
   let tutorialCursor = 0;
   let pendingWagerAction = null;
   let pendingDecision = null;
-  let selectedTableSize =
-    Array.from(tableSizeButtons).find((button) => button.classList.contains("active"))?.dataset
-      .size || "standard";
+  let selectedBlinds = {
+    smallBlind:
+      Number(
+        Array.from(blindSizeButtons).find((button) => button.classList.contains("active"))?.dataset
+          ?.sb
+      ) || 1,
+    bigBlind:
+      Number(
+        Array.from(blindSizeButtons).find((button) => button.classList.contains("active"))?.dataset
+          ?.bb
+      ) || 2,
+  };
   let botTimer = null;
 
   const getTutorialSlides = () =>
@@ -76,11 +95,13 @@ export const createAppUi = (engine) => {
     pendingDecision = null;
   };
 
-  const applyTableSize = (size) => {
-    selectedTableSize = size;
-    document.body.dataset.tableSize = size;
-    tableSizeButtons.forEach((button) => {
-      button.classList.toggle("active", button.dataset.size === size);
+  const applyBlindSize = (smallBlind, bigBlind) => {
+    selectedBlinds = { smallBlind, bigBlind };
+    blindSizeButtons.forEach((button) => {
+      button.classList.toggle(
+        "active",
+        Number(button.dataset.sb) === smallBlind && Number(button.dataset.bb) === bigBlind
+      );
     });
   };
 
@@ -155,40 +176,47 @@ export const createAppUi = (engine) => {
     }
   };
 
-  const playerBadges = (state, player) => {
-    const badges = [];
-    if (state.dealerIndex === player.id) {
-      badges.push("D");
+  const getPrimaryRoleBadge = (state, player) => {
+    if (state.bigBlindIndex === player.id) {
+      return "BB";
     }
     if (state.smallBlindIndex === player.id) {
-      badges.push("SB");
+      return "SB";
     }
-    if (state.bigBlindIndex === player.id) {
-      badges.push("BB");
+    if (state.dealerIndex === player.id) {
+      return "D";
     }
-    if (player.standing) {
-      badges.push("Stand");
-    }
-    if (player.doubleDown) {
-      badges.push("DD");
-    }
-    return badges;
+    return "P";
   };
 
-  const playerTotalLabel = (state, player) => {
+  const getStatusText = (player) => {
     if (player.folded) {
       return "Folded";
     }
     if (player.busted) {
-      return `Bust (${player.total})`;
+      return "Busted";
     }
-    if (player.isHuman || state.handComplete) {
-      return `Total ${player.total}`;
-    }
+    const tokens = [];
     if (player.standing) {
-      return "Standing";
+      tokens.push("Stand");
     }
-    return "Total hidden";
+    if (player.doubleDown) {
+      tokens.push("DD");
+    }
+    if (tokens.length === 0) {
+      return player.lastAction;
+    }
+    return `${player.lastAction} | ${tokens.join(" ")}`;
+  };
+
+  const getTotalBubbleValue = (player) => {
+    if (player.folded) {
+      return "--";
+    }
+    if (player.busted) {
+      return "B";
+    }
+    return String(player.total);
   };
 
   const renderPlayers = (state) => {
@@ -208,50 +236,62 @@ export const createAppUi = (engine) => {
         seat.classList.add("is-turn");
       }
 
-      const seatTop = document.createElement("div");
-      seatTop.className = "seat-top";
-      seatTop.innerHTML = `
-        <strong>${player.name}</strong>
-        <span>${player.chips} chips</span>
-      `;
+      const shell = document.createElement("div");
+      shell.className = "profile-shell";
 
-      const badgeRow = document.createElement("div");
-      badgeRow.className = "seat-badges";
-      playerBadges(state, player).forEach((badgeText) => {
-        const badge = document.createElement("span");
-        badge.className = "chip-badge";
-        badge.textContent = badgeText;
-        badgeRow.appendChild(badge);
-      });
+      const headerBand = document.createElement("div");
+      headerBand.className = "profile-header-band";
+      headerBand.innerHTML = `<strong>${player.name.toUpperCase()}</strong>`;
+
+      const roleBadge = document.createElement("div");
+      roleBadge.className = "profile-role-badge";
+      roleBadge.textContent = getPrimaryRoleBadge(state, player);
+
+      const body = document.createElement("div");
+      body.className = "profile-body";
 
       const cards = document.createElement("div");
       cards.className = "seat-cards";
-      const revealCards = player.isHuman || state.handComplete;
+      const revealCards = true;
       player.hand.forEach((card) => {
         cards.appendChild(createCardNode(card, !revealCards));
       });
+      if (player.hand.length === 0) {
+        cards.appendChild(createCardNode(null, true));
+      }
+
+      body.appendChild(cards);
+
+      const totalBadge = document.createElement("div");
+      totalBadge.className = "profile-total-badge";
+      totalBadge.textContent = getTotalBubbleValue(player);
 
       const seatBottom = document.createElement("div");
-      seatBottom.className = "seat-bottom-row";
+      seatBottom.className = "profile-footer";
       seatBottom.innerHTML = `
-        <span>${playerTotalLabel(state, player)}</span>
-        <span>${player.lastAction}</span>
+        <span>${player.chips} chips</span>
+        <span>${getStatusText(player)}</span>
       `;
 
-      seat.appendChild(seatTop);
-      seat.appendChild(badgeRow);
-      seat.appendChild(cards);
+      shell.appendChild(headerBand);
+      shell.appendChild(roleBadge);
+      shell.appendChild(body);
+      shell.appendChild(totalBadge);
+      seat.appendChild(shell);
       seat.appendChild(seatBottom);
       playerLayer.appendChild(seat);
     });
   };
 
-  const createActionButton = (label, onClick, className = "") => {
+  const createActionButton = (label, onClick, className = "", disabled = false) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `action-btn ${className}`.trim();
     button.textContent = label;
-    button.addEventListener("click", onClick);
+    button.disabled = disabled;
+    if (!disabled) {
+      button.addEventListener("click", onClick);
+    }
     return button;
   };
 
@@ -276,6 +316,7 @@ export const createAppUi = (engine) => {
       return false;
     }
 
+    actionButtons.innerHTML = "";
     wagerTray.innerHTML = "";
     const toCall = Math.max(0, state.currentBet - player.roundBet);
     const canStandAfter =
@@ -295,36 +336,35 @@ export const createAppUi = (engine) => {
     title.textContent = decisionText;
     wagerTray.appendChild(title);
 
-    const row = document.createElement("div");
-    row.className = "decision-buttons";
-
-    row.appendChild(
+    actionButtons.appendChild(
       createActionButton("Confirm", () => {
         runPendingDecision(false);
       }, "primary")
     );
 
-    const standButton = createActionButton("Stand", () => {
-      runPendingDecision(true);
-    });
-    standButton.disabled = !canStandAfter;
-    if (!canStandAfter) {
-      standButton.title = "Stand is not available in this spot.";
-    }
-    row.appendChild(standButton);
+    actionButtons.appendChild(
+      createActionButton(
+        "Stand",
+        () => {
+          runPendingDecision(true);
+        },
+        "",
+        !canStandAfter
+      )
+    );
 
-    row.appendChild(
+    actionButtons.appendChild(
       createActionButton("Cancel", () => {
         clearPendingFlow();
         render();
       }, "ghost")
     );
 
-    wagerTray.appendChild(row);
     return true;
   };
 
   const renderWagerOptions = (player) => {
+    actionButtons.innerHTML = "";
     wagerTray.innerHTML = "";
     if (!pendingWagerAction || pendingDecision) {
       return;
@@ -342,8 +382,6 @@ export const createAppUi = (engine) => {
       pendingWagerAction === "bet" ? "Choose bet amount:" : "Choose raise amount:";
     wagerTray.appendChild(title);
 
-    const row = document.createElement("div");
-    row.className = "wager-buttons";
     options.forEach((option) => {
       const button = createActionButton(`${option.label} (${option.cost})`, () => {
         pendingDecision = {
@@ -354,11 +392,10 @@ export const createAppUi = (engine) => {
         pendingWagerAction = null;
         render();
       });
-      row.appendChild(button);
+      actionButtons.appendChild(button);
     });
-    wagerTray.appendChild(row);
 
-    wagerTray.appendChild(
+    actionButtons.appendChild(
       createActionButton("Cancel", () => {
         clearPendingFlow();
         render();
@@ -399,13 +436,23 @@ export const createAppUi = (engine) => {
 
     if (pendingDecision) {
       turnPrompt.textContent = "Confirm your action: Confirm, Stand, or Cancel.";
+      renderPendingDecision(state, currentPlayer);
+      return;
     } else if (pendingWagerAction) {
       turnPrompt.textContent = "Pick a wager size to continue.";
+      renderWagerOptions(currentPlayer);
+      return;
     } else {
-      turnPrompt.textContent = `Your turn in ${state.roundName}. Pot: ${state.pot}.`;
+      turnPrompt.textContent = `Your turn in ${state.roundName}. Blinds ${state.smallBlindAmount}/${state.bigBlindAmount}. Pot ${state.pot}.`;
     }
 
-    actions.forEach((action) => {
+    const orderedActions = [...actions].sort((left, right) => {
+      const leftRank = actionOrder[left] || 99;
+      const rightRank = actionOrder[right] || 99;
+      return leftRank - rightRank;
+    });
+
+    orderedActions.forEach((action) => {
       if (action === "bet" || action === "raise") {
         actionButtons.appendChild(
           createActionButton(actionLabel[action], () => {
@@ -437,10 +484,6 @@ export const createAppUi = (engine) => {
         })
       );
     });
-
-    if (!renderPendingDecision(state, currentPlayer)) {
-      renderWagerOptions(currentPlayer);
-    }
   };
 
   const renderLog = (state) => {
@@ -457,7 +500,7 @@ export const createAppUi = (engine) => {
 
     roundBadge.textContent = `Round ${state.roundName}`;
     potBadge.textContent = `Pot ${state.pot}`;
-    betBadge.textContent = `To Call ${state.currentBet}`;
+    betBadge.textContent = `Blinds ${state.smallBlindAmount}/${state.bigBlindAmount}`;
 
     renderCommunity(state);
     renderPlayers(state);
@@ -510,17 +553,21 @@ export const createAppUi = (engine) => {
     render();
   });
 
-  tableSizeButtons.forEach((button) => {
+  blindSizeButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      applyTableSize(button.dataset.size);
+      applyBlindSize(Number(button.dataset.sb), Number(button.dataset.bb));
     });
   });
 
   startGameButton.addEventListener("click", () => {
+    clearPendingFlow();
+    engine.setBlindStructure(selectedBlinds.smallBlind, selectedBlinds.bigBlind);
+    engine.startNewHand();
     lobbyOverlay.classList.add("hidden");
+    render();
   });
 
-  applyTableSize(selectedTableSize);
+  applyBlindSize(selectedBlinds.smallBlind, selectedBlinds.bigBlind);
   setMenuPanel(activeMenuPanel);
   renderTutorial();
   render();

@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="9.4891367mm"
+   height="8.8934135mm"
+   viewBox="0 0 9.4891367 8.8934135"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   sodipodi:docname="drawing.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.72693603"
+     inkscape:cx="442.95507"
+     inkscape:cy="522.74201"
+     inkscape:window-width="1920"
+     inkscape:window-height="1018"
+     inkscape:window-x="-6"
+     inkscape:window-y="-6"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
+    <inkscape:page
+       x="0"
+       y="0"
+       width="9.4891367"
+       height="8.8934135"
+       id="page2"
+       margin="0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <linearGradient
+       id="linearGradient20"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop20" />
+      <stop
+         style="stop-color:#0a0a0a;stop-opacity:1;"
+         offset="0.32234424"
+         id="stop22" />
+      <stop
+         style="stop-color:#adadad;stop-opacity:1;"
+         offset="1"
+         id="stop21" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient20"
+       id="linearGradient21"
+       x1="34.213234"
+       y1="103.9136"
+       x2="34.213234"
+       y2="54.231617"
+       gradientUnits="userSpaceOnUse" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient20"
+       id="linearGradient22"
+       gradientUnits="userSpaceOnUse"
+       x1="34.213234"
+       y1="59.389267"
+       x2="34.213234"
+       y2="51.78664" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient20"
+       id="linearGradient24"
+       gradientUnits="userSpaceOnUse"
+       x1="34.213234"
+       y1="59.389267"
+       x2="34.213234"
+       y2="51.78664"
+       gradientTransform="translate(27.409487,-0.12868276)" />
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Drop Shadow"
+       id="filter26"
+       x="-0.26792237"
+       y="-0.18367005"
+       width="1.7386266"
+       height="1.5139633">
+      <feFlood
+         result="flood"
+         in="SourceGraphic"
+         flood-opacity="0.498039"
+         flood-color="rgb(0,0,0)"
+         id="feFlood25" />
+      <feGaussianBlur
+         result="blur"
+         in="SourceGraphic"
+         stdDeviation="3.000000"
+         id="feGaussianBlur25" />
+      <feOffset
+         result="offset"
+         in="blur"
+         dx="5.688620"
+         dy="6.000000"
+         id="feOffset25" />
+      <feComposite
+         result="comp1"
+         operator="in"
+         in="flood"
+         in2="offset"
+         id="feComposite25" />
+      <feComposite
+         result="comp2"
+         operator="over"
+         in="SourceGraphic"
+         in2="comp1"
+         id="feComposite26" />
+    </filter>
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-41.252311,-51.567079)">
+    <rect
+       style="opacity:0.64539;fill:url(#linearGradient21);fill-opacity:1;stroke:#dc6f1f;stroke-width:1.432;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="rect20"
+       width="30.705351"
+       height="52.957729"
+       x="14.558824"
+       y="52.411762"
+       rx="3.2757344"
+       ry="2.8207746" />
+    <rect
+       style="fill:#ffffff;fill-opacity:1;stroke:#dc6f1f;stroke-width:0.632;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers;filter:url(#filter26)"
+       id="rect23"
+       width="28.052902"
+       height="40.921207"
+       x="15.828013"
+       y="62.253719"
+       rx="3.2757344"
+       ry="2.8207743" />
+    <rect
+       style="opacity:0.64539;fill:url(#linearGradient22);fill-opacity:1;stroke:#dc6f1f;stroke-width:1.432;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="rect22"
+       width="30.834034"
+       height="7.4614067"
+       x="14.558824"
+       y="52.411762"
+       rx="3.2757344"
+       ry="2.8207746" />
+    <rect
+       style="fill:url(#linearGradient24);fill-opacity:1;stroke:#dc6f1f;stroke-width:1.432;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;paint-order:stroke fill markers"
+       id="rect24"
+       width="8.0571365"
+       height="7.4614105"
+       x="41.968311"
+       y="52.283081"
+       rx="3.2757344"
+       ry="2.8207746" />
+    <text
+       xml:space="preserve"
+       style="font-size:5.65568px;line-height:1.25;font-family:sans-serif;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke-width:0.141392"
+       x="42.045834"
+       y="57.981953"
+       id="text24"><tspan
+         sodipodi:role="line"
+         id="tspan24"
+         style="fill:#ffffff;fill-opacity:1;stroke-width:0.141392"
+         x="42.045834"
+         y="57.981953">BB</tspan></text>
+  </g>
+</svg>
