@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=40" />
+    <link rel="stylesheet" href="styles.css?v=42" />
   </head>
   <body>
     <div id="splashScreen" class="splash-screen" aria-hidden="true">
@@ -69,7 +69,21 @@
         </section>
 
         <section class="menu-panel" data-panel-content="tutorial">
-          <div id="tutorialModuleTabs" class="tutorial-modules" aria-label="Tutorial modules"></div>
+          <div class="tutorial-walkthrough-bar" aria-label="Walkthrough controls">
+            <button id="tutorialStart" class="btn primary mini" type="button">Start Walkthrough</button>
+            <button id="tutorialSkip" class="btn ghost mini" type="button">Skip Step</button>
+            <button id="tutorialRestart" class="btn ghost mini" type="button">Restart</button>
+          </div>
+          <div
+            id="tutorialProgressTrack"
+            class="tutorial-progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div id="tutorialProgressFill" class="tutorial-progress-fill"></div>
+          </div>
           <article class="tutorial-card">
             <p id="tutorialMeta" class="tutorial-meta"></p>
             <h3 id="tutorialTitle"></h3>
@@ -77,9 +91,8 @@
             <ul id="tutorialBullets" class="tutorial-bullets"></ul>
           </article>
           <div class="tutorial-controls">
-            <button id="tutorialPrev" class="btn ghost mini" type="button">Back</button>
             <span id="tutorialCounter"></span>
-            <button id="tutorialNext" class="btn ghost mini" type="button">Next</button>
+            <p id="tutorialActionHint" class="tutorial-action-hint"></p>
           </div>
         </section>
 
@@ -136,6 +149,6 @@
       </main>
     </div>
 
-    <script type="module" src="js/holdem-app-bootstrap.js?v=40"></script>
+    <script type="module" src="js/holdem-app-bootstrap.js?v=41"></script>
   </body>
 </html>

@@ -1,6 +1,9 @@
 import { CARD_BACK_IMAGE, cardDisplayName } from "./cards.js";
 import { BLIND_PRESETS, MIN_BUYIN_MULTIPLIER, STARTING_STACK } from "./rules.js";
-import { tutorialModules, tutorialScreens } from "./tutorial-data.js";
+import {
+  tutorialWalkthroughIntro,
+  tutorialWalkthroughSteps,
+} from "./tutorial-data.js";
 import { createUiSpeechService } from "./ui-speech-service.js";
 import { buildActionVoiceLine, buildWinnerVoiceLine } from "./ui-voice-lines.js";
 
@@ -52,14 +55,17 @@ export const createAppUi = (engine) => {
   const menuTabs = document.querySelectorAll(".menu-tab");
   const menuPanels = document.querySelectorAll(".menu-panel");
 
-  const tutorialModuleTabs = document.querySelector("#tutorialModuleTabs");
+  const tutorialStart = document.querySelector("#tutorialStart");
+  const tutorialSkip = document.querySelector("#tutorialSkip");
+  const tutorialRestart = document.querySelector("#tutorialRestart");
+  const tutorialProgressTrack = document.querySelector("#tutorialProgressTrack");
+  const tutorialProgressFill = document.querySelector("#tutorialProgressFill");
   const tutorialMeta = document.querySelector("#tutorialMeta");
   const tutorialTitle = document.querySelector("#tutorialTitle");
   const tutorialBody = document.querySelector("#tutorialBody");
   const tutorialBullets = document.querySelector("#tutorialBullets");
-  const tutorialPrev = document.querySelector("#tutorialPrev");
-  const tutorialNext = document.querySelector("#tutorialNext");
   const tutorialCounter = document.querySelector("#tutorialCounter");
+  const tutorialActionHint = document.querySelector("#tutorialActionHint");
 
   const newHandButton = document.querySelector("#newHandButton");
   const tableTitle = document.querySelector("#tableTitle");
@@ -77,8 +83,13 @@ export const createAppUi = (engine) => {
   const winnerBanner = document.querySelector("#winnerBanner");
 
   let activeMenuPanel = "overview";
-  let activeTutorialModule = tutorialModules[0].id;
-  let tutorialCursor = 0;
+  const tutorialState = {
+    active: false,
+    stepIndex: 0,
+    complete: false,
+  };
+  let activeTutorialTarget = null;
+  let tutorialFocusRing = null;
   let pendingWagerAction = null;
   let pendingDecision = null;
   let selectedTablePreset = BLIND_PRESETS[0];
@@ -104,9 +115,6 @@ export const createAppUi = (engine) => {
     maxQueue: MAX_SPEECH_QUEUE,
   });
 
-  const getTutorialSlides = () =>
-    tutorialScreens.filter((screen) => screen.module === activeTutorialModule);
-
   const setMenuPanel = (panelId) => {
     activeMenuPanel = panelId;
     menuTabs.forEach((tab) => {
@@ -115,6 +123,310 @@ export const createAppUi = (engine) => {
     menuPanels.forEach((panel) => {
       panel.classList.toggle("active", panel.dataset.panelContent === panelId);
     });
+  };
+
+  const getCurrentTutorialStep = () => tutorialWalkthroughSteps[tutorialState.stepIndex] || null;
+
+  const getActionButtonByKey = (key) => {
+    if (!actionButtons) {
+      return null;
+    }
+    return actionButtons.querySelector(`.action-btn[data-tutorial-action="${key}"]`);
+  };
+
+  const resolveTutorialTarget = (step = getCurrentTutorialStep()) => {
+    if (!step) {
+      return null;
+    }
+    if (step.targetAction) {
+      return getActionButtonByKey(step.targetAction);
+    }
+    if (step.targetSelector) {
+      return document.querySelector(step.targetSelector);
+    }
+    return null;
+  };
+
+  const ensureTutorialFocusRing = () => {
+    if (tutorialFocusRing) {
+      return tutorialFocusRing;
+    }
+    tutorialFocusRing = document.createElement("div");
+    tutorialFocusRing.id = "tutorialFocusRing";
+    tutorialFocusRing.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tutorialFocusRing);
+    return tutorialFocusRing;
+  };
+
+  const clearTutorialFocus = () => {
+    if (activeTutorialTarget) {
+      activeTutorialTarget.classList.remove("tutorial-target-active");
+      activeTutorialTarget = null;
+    }
+    document.body.classList.remove("tutorial-focus-mode");
+    if (tutorialFocusRing) {
+      tutorialFocusRing.classList.remove("visible");
+      tutorialFocusRing.style.width = "0px";
+      tutorialFocusRing.style.height = "0px";
+    }
+  };
+
+  const setTutorialFocus = (target) => {
+    const ring = ensureTutorialFocusRing();
+    if (!target) {
+      clearTutorialFocus();
+      return;
+    }
+    if (activeTutorialTarget && activeTutorialTarget !== target) {
+      activeTutorialTarget.classList.remove("tutorial-target-active");
+    }
+    activeTutorialTarget = target;
+    activeTutorialTarget.classList.add("tutorial-target-active");
+    const rect = target.getBoundingClientRect();
+    ring.style.left = `${Math.max(0, rect.left - 8)}px`;
+    ring.style.top = `${Math.max(0, rect.top - 8)}px`;
+    ring.style.width = `${Math.max(0, rect.width + 16)}px`;
+    ring.style.height = `${Math.max(0, rect.height + 16)}px`;
+    ring.classList.add("visible");
+    document.body.classList.add("tutorial-focus-mode");
+  };
+
+  const spawnTutorialStepBurst = (sourceElement) => {
+    if (!sourceElement) {
+      return;
+    }
+    const rect = sourceElement.getBoundingClientRect();
+    const burst = document.createElement("div");
+    burst.className = "tutorial-step-burst";
+    burst.style.left = `${rect.left + rect.width / 2}px`;
+    burst.style.top = `${rect.top + rect.height / 2}px`;
+    document.body.appendChild(burst);
+    burst.addEventListener("animationend", () => {
+      burst.remove();
+    });
+  };
+
+  const setTutorialStepMode = (step = getCurrentTutorialStep()) => {
+    if (!tutorialState.active || !step) {
+      return;
+    }
+    if (step.mode === "menu") {
+      menuDrawer?.classList.add("open");
+      if (step.panel) {
+        setMenuPanel(step.panel);
+      }
+      return;
+    }
+    if (step.mode === "table") {
+      menuDrawer?.classList.remove("open");
+    }
+  };
+
+  const announceTutorialStep = (step = getCurrentTutorialStep()) => {
+    if (!tutorialState.active || !step) {
+      return;
+    }
+    queueSpeechLine(`Coach: ${step.instruction}`, {
+      replaceQueue: true,
+      ttlMs: 5200,
+    });
+  };
+
+  const forceTutorialHumanOpeningTurn = () => {
+    for (let guard = 0; guard < 4; guard += 1) {
+      const snapshot = engine.getVisibleState();
+      const current = snapshot.players[snapshot.currentTurnIndex];
+      if (
+        current &&
+        current.isHuman &&
+        !snapshot.handComplete &&
+        snapshot.roundIndex === 0
+      ) {
+        return;
+      }
+      engine.startNewHand();
+    }
+  };
+
+  const updateTutorialProgress = () => {
+    const total = tutorialWalkthroughSteps.length;
+    const currentIndex = tutorialState.stepIndex;
+    const progress = tutorialState.active
+      ? Math.round((Math.min(currentIndex, total - 1) / Math.max(1, total - 1)) * 100)
+      : 0;
+    if (tutorialProgressFill) {
+      tutorialProgressFill.style.width = `${progress}%`;
+    }
+    if (tutorialProgressTrack) {
+      tutorialProgressTrack.setAttribute("aria-valuenow", String(progress));
+    }
+  };
+
+  const advanceTutorialStep = (sourceElement = null) => {
+    if (!tutorialState.active) {
+      return;
+    }
+    const currentStep = getCurrentTutorialStep();
+    if (!currentStep) {
+      return;
+    }
+    spawnTutorialStepBurst(sourceElement || resolveTutorialTarget(currentStep));
+    if (tutorialState.stepIndex >= tutorialWalkthroughSteps.length - 1) {
+      tutorialState.complete = true;
+      render();
+      return;
+    }
+    tutorialState.stepIndex += 1;
+    tutorialState.complete = tutorialState.stepIndex >= tutorialWalkthroughSteps.length - 1;
+    setTutorialStepMode();
+    announceTutorialStep();
+    render();
+  };
+
+  const stepAutoComplete = (step, state) => {
+    if (!step || !step.autoAdvance) {
+      return false;
+    }
+    if (step.autoAdvance === "community-card") {
+      return state.community.length > 0;
+    }
+    return false;
+  };
+
+  const maybeAutoAdvanceTutorial = (state) => {
+    if (!tutorialState.active || tutorialState.complete) {
+      return;
+    }
+    const step = getCurrentTutorialStep();
+    if (!step || !stepAutoComplete(step, state)) {
+      return;
+    }
+    advanceTutorialStep(resolveTutorialTarget(step));
+  };
+
+  const startTutorialWalkthrough = () => {
+    tutorialState.active = true;
+    tutorialState.stepIndex = 0;
+    tutorialState.complete = false;
+    clearSpeechQueue();
+    menuDrawer?.classList.add("open");
+    setMenuPanel("tutorial");
+    setTutorialStepMode();
+    announceTutorialStep();
+    render();
+  };
+
+  const skipTutorialStep = () => {
+    if (!tutorialState.active || tutorialState.complete) {
+      return;
+    }
+    advanceTutorialStep(resolveTutorialTarget(getCurrentTutorialStep()));
+  };
+
+  const restartTutorialWalkthrough = () => {
+    tutorialState.stepIndex = 0;
+    tutorialState.complete = false;
+    tutorialState.active = true;
+    clearSpeechQueue();
+    menuDrawer?.classList.add("open");
+    setMenuPanel("tutorial");
+    setTutorialStepMode();
+    announceTutorialStep();
+    render();
+  };
+
+  const stopTutorialWalkthrough = () => {
+    tutorialState.active = false;
+    tutorialState.stepIndex = 0;
+    tutorialState.complete = false;
+    clearSpeechQueue();
+    clearTutorialFocus();
+    updateTutorialProgress();
+    render();
+  };
+
+  const renderTutorial = () => {
+    const totalSteps = tutorialWalkthroughSteps.length;
+    const currentStep = getCurrentTutorialStep();
+
+    if (!tutorialState.active) {
+      if (tutorialMeta) {
+        tutorialMeta.textContent = "Guided Coach";
+      }
+      if (tutorialTitle) {
+        tutorialTitle.textContent = tutorialWalkthroughIntro.title;
+      }
+      if (tutorialBody) {
+        tutorialBody.innerHTML = `<p>${tutorialWalkthroughIntro.summary}</p>`;
+      }
+      if (tutorialBullets) {
+        tutorialBullets.innerHTML = (tutorialWalkthroughIntro.bullets || [])
+          .map((item) => `<li>${item}</li>`)
+          .join("");
+      }
+      if (tutorialCounter) {
+        tutorialCounter.textContent = "Ready";
+      }
+      if (tutorialActionHint) {
+        tutorialActionHint.textContent = "Press Start Walkthrough.";
+      }
+      if (tutorialStart) {
+        tutorialStart.textContent = "Start Walkthrough";
+      }
+      if (tutorialSkip) {
+        tutorialSkip.disabled = true;
+      }
+      if (tutorialRestart) {
+        tutorialRestart.textContent = "Close";
+      }
+      updateTutorialProgress();
+      clearTutorialFocus();
+      return;
+    }
+
+    if (!currentStep) {
+      tutorialState.complete = true;
+      clearTutorialFocus();
+      updateTutorialProgress();
+      return;
+    }
+
+    const stepPosition = Math.min(tutorialState.stepIndex + 1, totalSteps);
+    if (tutorialMeta) {
+      tutorialMeta.textContent = `${currentStep.phase} | Guided Step`;
+    }
+    if (tutorialTitle) {
+      tutorialTitle.textContent = currentStep.title;
+    }
+    if (tutorialBody) {
+      tutorialBody.innerHTML = `
+        <p><strong>Click:</strong> ${currentStep.instruction}</p>
+        <p><strong>Why:</strong> ${currentStep.why}</p>
+      `;
+    }
+    if (tutorialBullets) {
+      tutorialBullets.innerHTML = (currentStep.bullets || []).map((item) => `<li>${item}</li>`).join("");
+    }
+    if (tutorialCounter) {
+      tutorialCounter.textContent = `Step ${stepPosition}/${totalSteps}`;
+    }
+    if (tutorialActionHint) {
+      tutorialActionHint.textContent = currentStep.autoAdvance
+        ? "Waiting for game state..."
+        : currentStep.instruction;
+    }
+    if (tutorialStart) {
+      tutorialStart.textContent = tutorialState.complete ? "Run Again" : "Restart";
+    }
+    if (tutorialSkip) {
+      tutorialSkip.disabled = tutorialState.complete;
+    }
+    if (tutorialRestart) {
+      tutorialRestart.textContent = "Close";
+    }
+    updateTutorialProgress();
+    setTutorialStepMode(currentStep);
+    setTutorialFocus(resolveTutorialTarget(currentStep));
   };
 
   const clearPendingFlow = () => {
@@ -388,51 +700,6 @@ export const createAppUi = (engine) => {
         selectedTablePreset.bigBlind * MIN_BUYIN_MULTIPLIER
       }`;
     }
-  };
-
-  const renderTutorialTabs = () => {
-    tutorialModuleTabs.innerHTML = "";
-    tutorialModules.forEach((module) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "tutorial-module-tab";
-      button.textContent = module.label;
-      button.classList.toggle("active", module.id === activeTutorialModule);
-      button.addEventListener("click", () => {
-        activeTutorialModule = module.id;
-        tutorialCursor = 0;
-        renderTutorial();
-      });
-      tutorialModuleTabs.appendChild(button);
-    });
-  };
-
-  const renderTutorial = () => {
-    renderTutorialTabs();
-    const slides = getTutorialSlides();
-    const safeIndex = Math.min(Math.max(tutorialCursor, 0), slides.length - 1);
-    tutorialCursor = safeIndex;
-    const slide = slides[safeIndex];
-
-    if (!slide) {
-      tutorialMeta.textContent = "";
-      tutorialTitle.textContent = "No tutorial content";
-      tutorialBody.innerHTML = "";
-      tutorialBullets.innerHTML = "";
-      tutorialCounter.textContent = "";
-      return;
-    }
-
-    const moduleLabel =
-      tutorialModules.find((module) => module.id === slide.module)?.label || "Tutorial";
-
-    tutorialMeta.textContent = moduleLabel;
-    tutorialTitle.textContent = slide.title;
-    tutorialBody.innerHTML = (slide.paragraphs || []).map((text) => `<p>${text}</p>`).join("");
-    tutorialBullets.innerHTML = (slide.bullets || []).map((item) => `<li>${item}</li>`).join("");
-    tutorialCounter.textContent = `${safeIndex + 1}/${slides.length}`;
-    tutorialPrev.disabled = safeIndex <= 0;
-    tutorialNext.disabled = safeIndex >= slides.length - 1;
   };
 
   const createCardNode = (card, hidden = false) => {
@@ -736,12 +1003,21 @@ export const createAppUi = (engine) => {
     });
   };
 
-  const createActionButton = (label, onClick, className = "", disabled = false) => {
+  const createActionButton = (
+    label,
+    onClick,
+    className = "",
+    disabled = false,
+    tutorialAction = ""
+  ) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = `action-btn ${className}`.trim();
     button.textContent = label;
     button.disabled = disabled;
+    if (tutorialAction) {
+      button.dataset.tutorialAction = tutorialAction;
+    }
     if (!disabled) {
       button.addEventListener("click", onClick);
     }
@@ -793,7 +1069,7 @@ export const createAppUi = (engine) => {
     actionButtons.appendChild(
       createActionButton("Confirm", () => {
         runPendingDecision(false);
-      }, "primary")
+      }, "primary", false, "confirm")
     );
 
     actionButtons.appendChild(
@@ -803,7 +1079,8 @@ export const createAppUi = (engine) => {
           runPendingDecision(true);
         },
         "",
-        !canStandAfter
+        !canStandAfter,
+        "stand-after"
       )
     );
 
@@ -811,7 +1088,7 @@ export const createAppUi = (engine) => {
       createActionButton("Cancel", () => {
         clearPendingFlow();
         render();
-      }, "ghost")
+      }, "ghost", false, "cancel")
     );
 
     return true;
@@ -845,7 +1122,7 @@ export const createAppUi = (engine) => {
         };
         pendingWagerAction = null;
         render();
-      });
+      }, "", false, "wager-option");
       actionButtons.appendChild(button);
     });
 
@@ -853,7 +1130,7 @@ export const createAppUi = (engine) => {
       createActionButton("Cancel", () => {
         clearPendingFlow();
         render();
-      }, "ghost")
+      }, "ghost", false, "cancel")
     );
   };
 
@@ -913,7 +1190,7 @@ export const createAppUi = (engine) => {
             pendingWagerAction = action;
             pendingDecision = null;
             render();
-          })
+          }, "", false, action)
         );
         return;
       }
@@ -925,7 +1202,7 @@ export const createAppUi = (engine) => {
             pendingDecision = { action: "call", cost: toCall };
             pendingWagerAction = null;
             render();
-          })
+          }, "", false, "call")
         );
         return;
       }
@@ -935,7 +1212,7 @@ export const createAppUi = (engine) => {
           clearPendingFlow();
           engine.performHumanAction(action);
           render();
-        })
+        }, "", false, action)
       );
     });
   };
@@ -988,6 +1265,7 @@ export const createAppUi = (engine) => {
     renderWinnerBanner(state);
     renderStatusAndActions(state);
     renderLog(state);
+    maybeAutoAdvanceTutorial(state);
     renderTutorial();
 
     if (gameStarted && !state.handComplete && typeof state.currentTurnIndex === "number") {
@@ -1036,6 +1314,61 @@ export const createAppUi = (engine) => {
     }
   };
 
+  const getTutorialClickKeys = (target) => {
+    if (!(target instanceof Element)) {
+      return [];
+    }
+    const keys = [];
+    if (target.closest("#newHandButton")) {
+      keys.push("deal");
+    }
+    if (target.closest("#potBadge")) {
+      keys.push("pot-badge");
+    }
+    if (target.closest(".seat-bottom .profile-shell")) {
+      keys.push("hero-seat");
+    }
+    if (target.closest('.menu-tab[data-panel="hands"]')) {
+      keys.push("tab-hands");
+    }
+    if (target.closest("#closeMenu")) {
+      keys.push("close-menu");
+    }
+    const actionButton = target.closest(".action-btn");
+    if (actionButton) {
+      const actionKey = actionButton.dataset.tutorialAction;
+      if (actionKey === "double") {
+        keys.push("action-double");
+      }
+      if (actionKey === "call") {
+        keys.push("action-call");
+      }
+      if (actionKey === "confirm") {
+        keys.push("confirm");
+      }
+    }
+    return keys;
+  };
+
+  const handleTutorialClickProgress = (event) => {
+    if (!tutorialState.active || tutorialState.complete) {
+      return;
+    }
+    const step = getCurrentTutorialStep();
+    if (!step || !step.clickKeys || step.clickKeys.length === 0) {
+      return;
+    }
+    const clickKeys = getTutorialClickKeys(event.target);
+    const matched = step.clickKeys.some((key) => clickKeys.includes(key));
+    if (!matched) {
+      return;
+    }
+    const sourceElement =
+      resolveTutorialTarget(step) ||
+      (event.target instanceof Element ? event.target.closest("button, .badge, .profile-shell") : null);
+    advanceTutorialStep(sourceElement || null);
+  };
+
   menuToggle.addEventListener("click", () => {
     menuDrawer.classList.toggle("open");
   });
@@ -1050,15 +1383,34 @@ export const createAppUi = (engine) => {
     });
   });
 
-  tutorialPrev.addEventListener("click", () => {
-    tutorialCursor = Math.max(0, tutorialCursor - 1);
-    renderTutorial();
+  tutorialStart?.addEventListener("click", () => {
+    if (!tutorialState.active || tutorialState.complete) {
+      startTutorialWalkthrough();
+      return;
+    }
+    restartTutorialWalkthrough();
   });
 
-  tutorialNext.addEventListener("click", () => {
-    const slides = getTutorialSlides();
-    tutorialCursor = Math.min(slides.length - 1, tutorialCursor + 1);
-    renderTutorial();
+  tutorialSkip?.addEventListener("click", () => {
+    skipTutorialStep();
+  });
+
+  tutorialRestart?.addEventListener("click", () => {
+    stopTutorialWalkthrough();
+  });
+
+  document.addEventListener("click", handleTutorialClickProgress);
+  window.addEventListener("resize", () => {
+    if (!tutorialState.active) {
+      return;
+    }
+    setTutorialFocus(resolveTutorialTarget());
+  });
+  menuDrawer?.addEventListener("scroll", () => {
+    if (!tutorialState.active) {
+      return;
+    }
+    setTutorialFocus(resolveTutorialTarget());
   });
 
   newHandButton.addEventListener("click", () => {
@@ -1071,6 +1423,9 @@ export const createAppUi = (engine) => {
     lastPayoutAnimationHand = null;
     drainedPotHandNumber = null;
     engine.startNewHand();
+    if (tutorialState.active) {
+      forceTutorialHumanOpeningTurn();
+    }
     render();
   });
 
