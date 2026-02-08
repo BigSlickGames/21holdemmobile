@@ -7,10 +7,30 @@ import {
 import { createUiSpeechService } from "./ui-speech-service.js";
 import { buildActionVoiceLine, buildWinnerVoiceLine } from "./ui-voice-lines.js";
 
-const seatClassByPlayer = {
-  0: "seat-bottom",
-  1: "seat-top-left",
-  2: "seat-top-right",
+const BOT_SEAT_LAYOUTS = {
+  1: [{ x: 50, y: 15 }],
+  2: [
+    { x: 20, y: 20 },
+    { x: 80, y: 20 },
+  ],
+  3: [
+    { x: 15, y: 28 },
+    { x: 50, y: 12 },
+    { x: 85, y: 28 },
+  ],
+  4: [
+    { x: 14, y: 36 },
+    { x: 32, y: 14 },
+    { x: 68, y: 14 },
+    { x: 86, y: 36 },
+  ],
+  5: [
+    { x: 14, y: 44 },
+    { x: 24, y: 18 },
+    { x: 50, y: 10 },
+    { x: 76, y: 18 },
+    { x: 86, y: 44 },
+  ],
 };
 
 const actionLabel = {
@@ -48,6 +68,8 @@ export const createAppUi = (engine) => {
   const tableMenuGrid = document.querySelector("#tableMenuGrid");
   const selectedTableInfo = document.querySelector("#selectedTableInfo");
   const startingStackValue = document.querySelector("#startingStackValue");
+  const botCountSelect = document.querySelector("#botCountSelect");
+  const signinRegisterBtn = document.querySelector("#signinRegisterBtn");
   const setupTutorialMenuBtn = document.querySelector("#setupTutorialMenuBtn");
 
   const menuToggle = document.querySelector("#menuToggle");
@@ -94,8 +116,10 @@ export const createAppUi = (engine) => {
   let pendingWagerAction = null;
   let pendingDecision = null;
   let selectedTablePreset = BLIND_PRESETS[0];
+  let selectedBotCount = 2;
   let botTimer = null;
   let gameStarted = false;
+  let handDealt = false;
   const actionLabelTimers = new Map();
   const visibleActionLabels = new Map();
   const lastKnownActions = new Map();
@@ -131,6 +155,16 @@ export const createAppUi = (engine) => {
       return;
     }
     setupOverlay?.classList.toggle("menu-mode", enabled);
+  };
+
+  const getSeatLayout = (playerId, totalPlayers) => {
+    if (playerId === 0) {
+      return { x: 50, y: 87 };
+    }
+    const botCount = Math.max(1, Math.min(5, totalPlayers - 1));
+    const options = BOT_SEAT_LAYOUTS[botCount] || BOT_SEAT_LAYOUTS[2];
+    const slot = options[playerId - 1] || options[options.length - 1];
+    return slot;
   };
 
   const getCurrentTutorialStep = () => tutorialWalkthroughSteps[tutorialState.stepIndex] || null;
@@ -459,6 +493,21 @@ export const createAppUi = (engine) => {
     speechService.clearQueue();
   };
 
+  const buildRoundVoiceLine = (state) => {
+    if (!state) {
+      return "";
+    }
+    const roundLabel = `${state.roundName} round.`;
+    if (state.roundIndex <= 0) {
+      return roundLabel;
+    }
+    const latestCommunityCard = state.community[state.roundIndex - 1];
+    if (!latestCommunityCard) {
+      return roundLabel;
+    }
+    return `${roundLabel} Community card dealt: ${cardDisplayName(latestCommunityCard)}.`;
+  };
+
   const getActionVoiceLine = (playerName, actionText) => buildActionVoiceLine(playerName, actionText);
 
   const getWinnerVoiceLine = (state) => buildWinnerVoiceLine(state, winnerIds);
@@ -532,7 +581,7 @@ export const createAppUi = (engine) => {
     if (!chipLayer || !playerLayer) {
       return null;
     }
-    const seat = playerLayer.querySelector(`.${seatClassByPlayer[playerId]}`);
+    const seat = playerLayer.querySelector(`[data-player-id="${playerId}"]`);
     if (!seat) {
       return null;
     }
@@ -667,23 +716,47 @@ export const createAppUi = (engine) => {
   };
 
   const startGameFromSetup = () => {
-    clearPendingFlow();
-    clearWinnerReveal();
-    clearSpeechQueue();
-    lastSpokenRoundKey = "";
-    clearChipLayer();
-    lastRenderedPot = 0;
-    drainedPotHandNumber = null;
-    lastSpokenTurnKey = "";
-    engine.setPlayerName(playerNameInput?.value || "PLAYER");
-    engine.setBlindStructure(selectedTablePreset.smallBlind, selectedTablePreset.bigBlind);
-    engine.startNewHand();
-    setLobbyMenuMode(false);
-    menuDrawer?.classList.remove("open");
-    setupOverlay?.classList.add("hidden");
-    appShell?.classList.remove("prestart");
-    gameStarted = true;
-    render();
+    try {
+      clearPendingFlow();
+      clearWinnerReveal();
+      clearSpeechQueue();
+      lastSpokenRoundKey = "";
+      clearChipLayer();
+      lastRenderedPot = 0;
+      drainedPotHandNumber = null;
+      lastSpokenTurnKey = "";
+
+      const safeBotCount = Math.max(1, Math.min(5, Number(selectedBotCount) || 2));
+      const safePreset = BLIND_PRESETS.find((preset) => preset.id === selectedTablePreset?.id) || BLIND_PRESETS[0];
+      selectedTablePreset = safePreset;
+
+      if (typeof engine.setBotCount === "function") {
+        engine.setBotCount(safeBotCount);
+      }
+      if (typeof engine.setPlayerName === "function") {
+        engine.setPlayerName("Guest");
+      }
+      if (playerNameInput) {
+        playerNameInput.value = "Guest";
+      }
+      if (typeof engine.setBlindStructure === "function") {
+        engine.setBlindStructure(safePreset.smallBlind, safePreset.bigBlind);
+      }
+      if (typeof engine.resetGameStateForRosterChange === "function") {
+        engine.resetGameStateForRosterChange();
+      }
+      handDealt = false;
+
+      setLobbyMenuMode(false);
+      menuDrawer?.classList.remove("open");
+      setupOverlay?.classList.add("hidden");
+      appShell?.classList.remove("prestart");
+      gameStarted = true;
+      render();
+    } catch (error) {
+      console.error("Failed to start table from setup:", error);
+      window.alert("Table failed to start. Refresh the page and select a table again.");
+    }
   };
 
   const renderTableMenu = () => {
@@ -695,17 +768,11 @@ export const createAppUi = (engine) => {
     BLIND_PRESETS.forEach((preset) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "table-menu-card";
+      button.className = "table-select-btn";
       button.classList.toggle("active", preset.id === selectedTablePreset.id);
       button.innerHTML = `
-        <img src="assets/images/table.png" alt="${preset.label} blind table" />
-        <span class="table-selected-badge">${
-          preset.id === selectedTablePreset.id ? "Selected" : "Select"
-        }</span>
-        <div class="table-menu-meta">
-          <strong>${preset.label}</strong>
-          <span>Min buy-in ${preset.bigBlind * MIN_BUYIN_MULTIPLIER}</span>
-        </div>
+        <span class="table-select-blinds">${preset.label}</span>
+        <span class="table-select-buyin">Buy-in ${preset.bigBlind * MIN_BUYIN_MULTIPLIER}</span>
       `;
       button.addEventListener("click", () => {
         selectedTablePreset = preset;
@@ -715,9 +782,9 @@ export const createAppUi = (engine) => {
     });
 
     if (selectedTableInfo) {
-      selectedTableInfo.textContent = `Selected table: ${selectedTablePreset.label} | Min buy-in ${
+      selectedTableInfo.textContent = `Guest Mode | Table ${selectedTablePreset.label} | Buy-in ${
         selectedTablePreset.bigBlind * MIN_BUYIN_MULTIPLIER
-      }`;
+      } | Bots ${selectedBotCount} | Press Deal to start`;
     }
   };
 
@@ -788,6 +855,10 @@ export const createAppUi = (engine) => {
   };
 
   const queueActionBanner = (playerId, lastAction) => {
+    if (playerId === 0) {
+      visibleActionLabels.delete(playerId);
+      return;
+    }
     const label = getActionBannerText(lastAction);
     if (!label) {
       return;
@@ -929,7 +1000,13 @@ export const createAppUi = (engine) => {
       }
 
       const seat = document.createElement("article");
-      seat.className = `player-seat ${seatClassByPlayer[player.id]}`;
+      seat.className = "player-seat";
+      seat.dataset.playerId = String(player.id);
+      const seatLayout = getSeatLayout(player.id, state.players.length);
+      seat.style.left = `${seatLayout.x}%`;
+      seat.style.top = `${seatLayout.y}%`;
+      seat.style.setProperty("--seat-translate-x", "-50%");
+      seat.style.setProperty("--seat-translate-y", "-50%");
 
       if (player.folded) {
         seat.classList.add("is-folded");
@@ -1066,24 +1143,11 @@ export const createAppUi = (engine) => {
 
     actionButtons.innerHTML = "";
     wagerTray.innerHTML = "";
-    const toCall = Math.max(0, state.currentBet - player.roundBet);
     const canStandAfter =
       !player.standing &&
       !player.responseOnly &&
       state.roundIndex < 4 &&
       ["call", "bet", "raise"].includes(pendingDecision.action);
-
-    const decisionText =
-      pendingDecision.action === "call"
-        ? `Call ${toCall} and choose how to proceed.`
-        : pendingDecision.action === "bet"
-          ? `Bet ${pendingDecision.cost} and choose how to proceed.`
-          : `Raise (total ${pendingDecision.cost}) and choose how to proceed.`;
-
-    const title = document.createElement("p");
-    title.className = "wager-title";
-    title.textContent = decisionText;
-    wagerTray.appendChild(title);
 
     actionButtons.appendChild(
       createActionButton("Confirm", () => {
@@ -1126,12 +1190,6 @@ export const createAppUi = (engine) => {
       return;
     }
 
-    const title = document.createElement("p");
-    title.className = "wager-title";
-    title.textContent =
-      pendingWagerAction === "bet" ? "Choose bet amount:" : "Choose raise amount:";
-    wagerTray.appendChild(title);
-
     options.forEach((option) => {
       const button = createActionButton(`${option.label} (${option.cost})`, () => {
         pendingDecision = {
@@ -1156,6 +1214,12 @@ export const createAppUi = (engine) => {
   const renderStatusAndActions = (state) => {
     actionButtons.innerHTML = "";
     wagerTray.innerHTML = "";
+
+    if (!gameStarted || !handDealt) {
+      clearPendingFlow();
+      turnPrompt.textContent = "Press Deal to start.";
+      return;
+    }
 
     if (state.handComplete) {
       clearPendingFlow();
@@ -1260,15 +1324,22 @@ export const createAppUi = (engine) => {
       clearChipLayer();
     }
 
-    if (gameStarted) {
+    if (gameStarted && handDealt) {
       const roundKey = `${state.handNumber}-${state.roundIndex}`;
       if (lastSpokenRoundKey !== roundKey) {
         lastSpokenRoundKey = roundKey;
+        const roundVoiceLine = buildRoundVoiceLine(state);
+        if (roundVoiceLine) {
+          queueSpeechLine(roundVoiceLine, {
+            priority: true,
+            ttlMs: TURN_SPEECH_TTL_MS,
+          });
+        }
       }
     }
 
     if (tableTitle) {
-      tableTitle.textContent = `21 HOLD'EM ${state.smallBlindAmount}/${state.bigBlindAmount}`;
+      tableTitle.textContent = `21 HOLD'EM GUEST ${state.smallBlindAmount}/${state.bigBlindAmount}`;
     }
     roundBadge.textContent = `Round ${state.roundName}`;
     potBadge.textContent = `Pot ${state.pot}`;
@@ -1287,7 +1358,7 @@ export const createAppUi = (engine) => {
     maybeAutoAdvanceTutorial(state);
     renderTutorial();
 
-    if (gameStarted && !state.handComplete && typeof state.currentTurnIndex === "number") {
+    if (gameStarted && handDealt && !state.handComplete && typeof state.currentTurnIndex === "number") {
       const currentTurnPlayer = state.players[state.currentTurnIndex];
       const turnKey = `${state.handNumber}-${state.roundIndex}-${state.currentTurnIndex}`;
       if (currentTurnPlayer && lastSpokenTurnKey !== turnKey) {
@@ -1304,11 +1375,12 @@ export const createAppUi = (engine) => {
       }
     }
 
-    if (gameStarted && !state.handComplete && potDelta > 0) {
+    if (gameStarted && handDealt && !state.handComplete && potDelta > 0) {
       animatePotIncreaseFromChanges(actionChanges, potDelta);
     }
     if (
       gameStarted &&
+      handDealt &&
       state.handComplete &&
       winnerRevealReady &&
       state.pot > 0 &&
@@ -1325,7 +1397,7 @@ export const createAppUi = (engine) => {
     }
 
     const currentPlayer = state.players[state.currentTurnIndex];
-    if (gameStarted && !state.handComplete && currentPlayer && !currentPlayer.isHuman) {
+    if (gameStarted && handDealt && !state.handComplete && currentPlayer && !currentPlayer.isHuman) {
       botTimer = window.setTimeout(() => {
         engine.playBotTurn();
         render();
@@ -1344,7 +1416,7 @@ export const createAppUi = (engine) => {
     if (target.closest("#potBadge")) {
       keys.push("pot-badge");
     }
-    if (target.closest(".seat-bottom .profile-shell")) {
+    if (target.closest('[data-player-id="0"] .profile-shell')) {
       keys.push("hero-seat");
     }
     if (target.closest("#closeMenu")) {
@@ -1401,6 +1473,17 @@ export const createAppUi = (engine) => {
     renderTutorial();
   });
 
+  signinRegisterBtn?.addEventListener("click", () => {
+    window.alert(
+      "Thanks for trying to register for 21 Hold'em! Be patient while I get the site ready for world domination :) Please enjoy the guest mode in the meantime.\n\nBrent."
+    );
+  });
+
+  botCountSelect?.addEventListener("change", () => {
+    selectedBotCount = Math.max(1, Math.min(5, Number(botCountSelect.value) || 2));
+    renderTableMenu();
+  });
+
   menuPanelSelect?.addEventListener("change", () => {
     setMenuPanel(menuPanelSelect.value);
     render();
@@ -1437,6 +1520,9 @@ export const createAppUi = (engine) => {
   });
 
   newHandButton.addEventListener("click", () => {
+    if (!gameStarted) {
+      return;
+    }
     clearPendingFlow();
     clearSpeechQueue();
     lastSpokenRoundKey = "";
@@ -1445,6 +1531,7 @@ export const createAppUi = (engine) => {
     lastRenderedPot = 0;
     lastPayoutAnimationHand = null;
     drainedPotHandNumber = null;
+    handDealt = true;
     engine.startNewHand();
     if (tutorialState.active) {
       forceTutorialHumanOpeningTurn();
@@ -1471,6 +1558,9 @@ export const createAppUi = (engine) => {
 
   if (startingStackValue) {
     startingStackValue.textContent = String(STARTING_STACK);
+  }
+  if (botCountSelect) {
+    selectedBotCount = Math.max(1, Math.min(5, Number(botCountSelect.value) || 2));
   }
   speechService.initialize();
   renderTableMenu();

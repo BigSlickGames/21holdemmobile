@@ -57,14 +57,14 @@ export const tutorialWalkthroughSteps = [
     id: "inspect_private_cards",
     phase: "Hand Reading",
     title: "Inspect your private cards",
-    instruction: "Click your bottom player profile.",
+    instruction: "Click the Guest player profile.",
     why: "After doubling, your private-card total drives every later decision.",
     bullets: [
       "Your total bubble now reflects two private cards.",
       "Standing locks community growth for your seat.",
     ],
     mode: "table",
-    targetSelector: ".seat-bottom .profile-shell",
+    targetSelector: '[data-player-id="0"] .profile-shell',
     clickKeys: ["hero-seat"],
   },
   {

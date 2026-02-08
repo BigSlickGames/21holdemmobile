@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>21 Hold'em | 3-Player Game</title>
-    <link rel="stylesheet" href="styles.css?v=44" />
+    <title>21 Hold'em | Guest Mode</title>
+    <link rel="stylesheet" href="styles.css?v=49" />
   </head>
   <body>
     <div id="splashScreen" class="splash-screen" aria-hidden="true">
@@ -15,23 +15,32 @@
       <section class="setup-card glass" aria-label="Player setup">
         <div class="setup-columns">
           <article class="profile-setup">
-            <p class="setup-kicker">Player Profile</p>
+            <p class="setup-kicker">Guest Mode</p>
             <h2>Seat Configuration</h2>
-            <label class="field-label" for="playerNameInput">Display Name</label>
+            <label class="field-label" for="playerNameInput">Player Name</label>
             <input
               id="playerNameInput"
               class="field-input"
               type="text"
               maxlength="12"
-              value="PLAYER"
+              value="Guest"
+              readonly
             />
+            <label class="field-label" for="botCountSelect">Bot Players</label>
+            <select id="botCountSelect" class="field-input">
+              <option value="1">1 Bot</option>
+              <option value="2" selected>2 Bots</option>
+              <option value="3">3 Bots</option>
+              <option value="4">4 Bots</option>
+              <option value="5">5 Bots</option>
+            </select>
             <p class="setup-stat">Starting stack: <strong id="startingStackValue">5000</strong></p>
-            <p class="setup-stat">Minimum buy-in: <strong>10x BB</strong></p>
-            <p class="setup-stat">Blind range: <strong>1/2 to 100/200</strong></p>
+            <p class="setup-stat">Minimum buy-in: <strong>50x BB</strong></p>
+            <p class="setup-stat">Blind range: <strong>1/2 to 500/1000</strong></p>
           </article>
 
           <article class="table-setup">
-            <p class="setup-kicker">Table Menu</p>
+            <p class="setup-kicker">Guest Mode Tables</p>
             <h2>Select Table Blinds</h2>
             <div id="tableMenuGrid" class="table-menu-grid"></div>
           </article>
@@ -39,6 +48,9 @@
 
         <div class="setup-actions">
           <p id="selectedTableInfo" class="selected-table-info">Tap a table to join instantly.</p>
+          <button id="signinRegisterBtn" class="btn ghost mini" type="button">
+            Sign In / Register
+          </button>
           <button id="setupTutorialMenuBtn" class="btn ghost mini" type="button">
             Tutorial Menu
           </button>
@@ -49,7 +61,7 @@
     <div class="app-shell prestart">
       <aside id="menuDrawer" class="menu-drawer glass" aria-label="Main menu">
         <div class="menu-header">
-          <h2>Table Menu</h2>
+          <h2>Guest Mode Menu</h2>
           <button id="closeMenu" class="btn ghost mini" type="button">Close</button>
         </div>
 
@@ -65,10 +77,11 @@
 
         <section class="menu-panel active" data-panel-content="overview">
           <p class="menu-copy">
-            Tutorial stays in this menu while the game runs on the main table.
+            Guest Mode lets you practice against AI while account features are being built.
           </p>
           <ul class="menu-list">
-            <li>3 seats: You, North Bot, East Bot.</li>
+            <li>You play as Guest.</li>
+            <li>Choose from 1 to 5 bot players.</li>
             <li>5 rounds: Pre-Action, Action, Stage, Show, Caboose.</li>
             <li>Best total at or under 21 wins.</li>
           </ul>
@@ -105,8 +118,9 @@
         <section class="menu-panel" data-panel-content="rules">
           <ul class="menu-list compact">
             <li>Starting stack is 5000 chips per player.</li>
-            <li>Minimum buy-in for any table is 10x the big blind.</li>
-            <li>Blind menu supports tables from 1/2 up to 100/200.</li>
+            <li>Minimum buy-in for any table is 50x the big blind.</li>
+            <li>Blind menu supports tables from 1/2 up to 500/1000.</li>
+            <li>Guest can seat up to 5 bot opponents.</li>
             <li>Each player starts with one private card face down.</li>
             <li>A single community card is revealed after each betting round.</li>
             <li>Confirm flow for call/bet/raise is Confirm, Stand, or Cancel.</li>
@@ -127,7 +141,7 @@
       <main class="workspace">
         <section class="game-board glass" aria-label="Game table">
           <header class="board-header">
-            <button id="menuToggle" class="btn ghost mini" type="button">Menu</button>
+            <button id="menuToggle" class="btn ghost mini" type="button">Guest Menu</button>
             <h1 id="tableTitle">21 HOLD'EM 1/2</h1>
             <button id="newHandButton" class="btn primary mini" type="button">Deal</button>
           </header>
@@ -155,6 +169,6 @@
       </main>
     </div>
 
-    <script type="module" src="js/holdem-app-bootstrap.js?v=44"></script>
+    <script type="module" src="js/holdem-app-bootstrap.js?v=49"></script>
   </body>
 </html>

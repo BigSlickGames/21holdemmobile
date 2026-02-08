@@ -13,11 +13,17 @@ import {
 } from "./rules.js";
 import { decideBotActionForPlayer } from "./game-bot-strategy-engine.js";
 
-const PLAYER_CONFIG = [
-  { name: "You", isHuman: true, botStyle: null },
-  { name: "North Bot", isHuman: false, botStyle: "conservative" },
-  { name: "East Bot", isHuman: false, botStyle: "aggressive" },
+const MIN_BOTS = 1;
+const MAX_BOTS = 5;
+const DEFAULT_BOTS = 2;
+const BOT_STYLE_ORDER = [
+  "conservative",
+  "aggressive",
+  "high-risk",
+  "conservative",
+  "aggressive",
 ];
+const GUEST_NAME = "Guest";
 
 export class Holdem21Engine {
   constructor(options = {}) {
@@ -27,9 +33,8 @@ export class Holdem21Engine {
       this.bigBlindAmount = this.smallBlindAmount * 2;
     }
 
-    this.players = PLAYER_CONFIG.map((config, index) =>
-      this.createPlayer(index, config.name, config.isHuman, config.botStyle)
-    );
+    this.botCount = this.normalizeBotCount(options.botCount);
+    this.players = this.buildPlayers(this.botCount);
     this.handNumber = 0;
     this.dealerIndex = -1;
     this.smallBlindIndex = 0;
@@ -46,6 +51,57 @@ export class Holdem21Engine {
     this.startNewHand();
   }
 
+  normalizeBotCount(count) {
+    const safe = Number(count);
+    if (!Number.isFinite(safe)) {
+      return DEFAULT_BOTS;
+    }
+    return Math.max(MIN_BOTS, Math.min(MAX_BOTS, Math.floor(safe)));
+  }
+
+  buildPlayers(botCount) {
+    const players = [this.createPlayer(0, GUEST_NAME, true, null)];
+    for (let index = 1; index <= botCount; index += 1) {
+      players.push(
+        this.createPlayer(
+          index,
+          `Player ${index}`,
+          false,
+          BOT_STYLE_ORDER[(index - 1) % BOT_STYLE_ORDER.length]
+        )
+      );
+    }
+    return players;
+  }
+
+  resetGameStateForRosterChange() {
+    this.handNumber = 0;
+    this.dealerIndex = -1;
+    this.smallBlindIndex = 0;
+    this.bigBlindIndex = Math.min(1, this.players.length - 1);
+    this.roundIndex = 0;
+    this.community = [];
+    this.deck = [];
+    this.currentBet = 0;
+    this.pot = 0;
+    this.currentTurnIndex = null;
+    this.handComplete = false;
+    this.handResult = "";
+    this.log = [];
+  }
+
+  setBotCount(count) {
+    const nextBotCount = this.normalizeBotCount(count);
+    if (nextBotCount === this.botCount) {
+      return;
+    }
+    const currentGuestName = this.players[0]?.name || GUEST_NAME;
+    this.botCount = nextBotCount;
+    this.players = this.buildPlayers(this.botCount);
+    this.players[0].name = currentGuestName;
+    this.resetGameStateForRosterChange();
+  }
+
   setBlindStructure(smallBlind, bigBlind) {
     const sb = Math.max(1, Number(smallBlind) || SMALL_BLIND);
     let bb = Math.max(sb + 1, Number(bigBlind) || BIG_BLIND);
@@ -59,7 +115,7 @@ export class Holdem21Engine {
 
   setPlayerName(name) {
     const cleanName = String(name || "").trim().slice(0, 12);
-    this.players[0].name = cleanName || "PLAYER";
+    this.players[0].name = cleanName || GUEST_NAME;
   }
 
   getMinBuyIn() {
@@ -169,7 +225,7 @@ export class Holdem21Engine {
     const player = this.players[playerIndex];
     const posted = this.applyContribution(player, amount);
     player.lastAction = `${label} ${posted}`;
-    this.logEvent(`${player.name} posts ${label} (${posted}).`);
+    this.logEvent(`${player.name} posts ${label} (${posted} chips).`);
   }
 
   getCardsForPlayer(player) {
@@ -508,7 +564,7 @@ export class Holdem21Engine {
       const paid = this.applyContribution(player, toCall);
       player.hasActed = true;
       player.lastAction = paid < toCall ? `Call ${paid} (all-in)` : `Call ${paid}`;
-      this.logEvent(`${player.name} calls ${paid}.`);
+      this.logEvent(`${player.name} calls ${paid} chips.`);
     }
 
     if (action === "stand") {
@@ -526,7 +582,7 @@ export class Holdem21Engine {
       player.lastAction = `Bet ${paid}`;
       this.currentBet = Math.max(this.currentBet, player.roundBet);
       this.resetRoundActed(player.id);
-      this.logEvent(`${player.name} bets ${paid}.`);
+      this.logEvent(`${player.name} bets ${paid} chips.`);
     }
 
     if (action === "raise") {
@@ -542,11 +598,11 @@ export class Holdem21Engine {
 
       if (paid <= toCall) {
         player.lastAction = `Call ${paid}`;
-        this.logEvent(`${player.name} calls ${paid}.`);
+        this.logEvent(`${player.name} calls ${paid} chips.`);
       } else {
         const byAmount = paid - toCall;
         player.lastAction = `Raise ${byAmount}`;
-        this.logEvent(`${player.name} raises by ${byAmount}.`);
+        this.logEvent(`${player.name} raises by ${byAmount} chips.`);
       }
     }
 
@@ -564,7 +620,7 @@ export class Holdem21Engine {
       const drawn = this.dealPrivateCard(player);
       player.lastAction = `Double ${paid}`;
       this.logEvent(
-        `${player.name} Double Downs for ${paid} and draws ${
+        `${player.name} Double Downs for ${paid} chips and draws ${
           drawn ? cardDisplayName(drawn) : "a card"
         }.`
       );
@@ -658,7 +714,7 @@ export class Holdem21Engine {
     });
 
     this.currentBet = 0;
-    this.currentTurnIndex = this.findNextPlayerToAct(this.nextIndex(this.dealerIndex));
+    this.currentTurnIndex = this.findNextPlayerToAct(this.nextIndex(this.bigBlindIndex));
 
     if (this.currentTurnIndex === null) {
       this.logEvent("No betting decisions available. Advancing.");
@@ -729,6 +785,7 @@ export class Holdem21Engine {
       handNumber: this.handNumber,
       roundIndex: this.roundIndex,
       roundName: ROUND_SEQUENCE[this.roundIndex],
+      botCount: this.botCount,
       startingStack: STARTING_STACK,
       minBuyIn: this.getMinBuyIn(),
       smallBlindAmount: this.smallBlindAmount,
