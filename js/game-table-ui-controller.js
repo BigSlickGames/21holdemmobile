@@ -53,12 +53,21 @@ const actionOrder = {
   fold: 5,
 };
 
-const BOT_TURN_DELAY_MS = 3000;
+const BOT_TURN_DELAY_MS = 1600;
 const ACTION_LABEL_DURATION_MS = 3000;
 const WINNER_REVEAL_DELAY_MS = 3000;
 const MAX_SPEECH_QUEUE = 4;
 const DEFAULT_SPEECH_TTL_MS = 4200;
 const TURN_SPEECH_TTL_MS = 5000;
+const TURN_ONLY_ANNOUNCEMENT_MODE = true;
+const PLAYER_ONE_VOICE_CLIPS = {
+  bet: "assets/sounds/player_one/player1_bet.mp3",
+  call: "assets/sounds/player_one/player1_call.mp3",
+  check: "assets/sounds/player_one/player1_check.mp3",
+  fold: "assets/sounds/player_one/player1_fold.mp3",
+  raise: "assets/sounds/player_one/player1_raise.mp3",
+};
+const CLIP_VOICE_PLAYER_IDS = new Set([1, 2]);
 
 export const createAppUi = (engine) => {
   const splashScreen = document.querySelector("#splashScreen");
@@ -512,6 +521,58 @@ export const createAppUi = (engine) => {
 
   const getWinnerVoiceLine = (state) => buildWinnerVoiceLine(state, winnerIds);
 
+  const getPlayerOneVoiceKey = (actionText) => {
+    const normalized = String(actionText || "").trim().toLowerCase();
+    if (!normalized || normalized === "waiting" || normalized === "winner") {
+      return null;
+    }
+    if (normalized.startsWith("fold")) {
+      return "fold";
+    }
+    if (normalized.startsWith("check")) {
+      return "check";
+    }
+    if (normalized.startsWith("call")) {
+      return "call";
+    }
+    if (normalized.startsWith("bet")) {
+      return "bet";
+    }
+    if (normalized.startsWith("raise")) {
+      return "raise";
+    }
+    return null;
+  };
+
+  const playPlayerOneVoiceClip = (actionText, fallbackLine = "") => {
+    const voiceKey = getPlayerOneVoiceKey(actionText);
+    if (!voiceKey) {
+      return false;
+    }
+    const clipPath = PLAYER_ONE_VOICE_CLIPS[voiceKey];
+    if (!clipPath || typeof Audio === "undefined") {
+      return false;
+    }
+    try {
+      const audio = new Audio(clipPath);
+      audio.preload = "auto";
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === "function" && fallbackLine) {
+        playPromise.catch(() => {
+          queueSpeechLine(fallbackLine, {
+            ttlMs: DEFAULT_SPEECH_TTL_MS,
+          });
+        });
+      }
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const shouldUsePlayerOneVoiceClip = (player) =>
+    Boolean(player && !player.isHuman && CLIP_VOICE_PLAYER_IDS.has(player.id));
+
   const clearChipLayer = () => {
     if (!chipLayer) {
       return;
@@ -941,12 +1002,14 @@ export const createAppUi = (engine) => {
 
     if (lastSpokenWinnerHand !== state.handNumber) {
       lastSpokenWinnerHand = state.handNumber;
-      queueSpeechLine(getWinnerVoiceLine(state), {
-        priority: true,
-        replaceQueue: true,
-        interrupt: true,
-        ttlMs: 0,
-      });
+      if (!TURN_ONLY_ANNOUNCEMENT_MODE) {
+        queueSpeechLine(getWinnerVoiceLine(state), {
+          priority: true,
+          replaceQueue: true,
+          interrupt: true,
+          ttlMs: 0,
+        });
+      }
     }
   };
 
@@ -1032,7 +1095,9 @@ export const createAppUi = (engine) => {
 
       const roleBadge = document.createElement("div");
       roleBadge.className = "profile-role-badge";
-      roleBadge.textContent = getPrimaryRoleBadge(state, player);
+      const roleCode = getPrimaryRoleBadge(state, player);
+      roleBadge.textContent = roleCode;
+      roleBadge.dataset.role = roleCode.toLowerCase();
 
       const body = document.createElement("div");
       body.className = "profile-body";
@@ -1081,10 +1146,27 @@ export const createAppUi = (engine) => {
     if (!gameStarted || !changes.length) {
       return [];
     }
-    return changes
-      .map((change) => getActionVoiceLine(change.player.name, change.action))
-      .filter(Boolean)
-      .slice(-2);
+    const lines = [];
+    changes.forEach((change) => {
+      const line = getActionVoiceLine(change.player.name, change.action);
+      if (!line) {
+        return;
+      }
+      if (shouldUsePlayerOneVoiceClip(change.player)) {
+        const played = playPlayerOneVoiceClip(
+          change.action,
+          TURN_ONLY_ANNOUNCEMENT_MODE ? "" : line
+        );
+        if (played || TURN_ONLY_ANNOUNCEMENT_MODE) {
+          return;
+        }
+      }
+      if (TURN_ONLY_ANNOUNCEMENT_MODE) {
+        return;
+      }
+      lines.push(line);
+    });
+    return lines.slice(-2);
   };
 
   const queueActionSpeechLines = (lines) => {
@@ -1328,12 +1410,14 @@ export const createAppUi = (engine) => {
       const roundKey = `${state.handNumber}-${state.roundIndex}`;
       if (lastSpokenRoundKey !== roundKey) {
         lastSpokenRoundKey = roundKey;
-        const roundVoiceLine = buildRoundVoiceLine(state);
-        if (roundVoiceLine) {
-          queueSpeechLine(roundVoiceLine, {
-            priority: true,
-            ttlMs: TURN_SPEECH_TTL_MS,
-          });
+        if (!TURN_ONLY_ANNOUNCEMENT_MODE) {
+          const roundVoiceLine = buildRoundVoiceLine(state);
+          if (roundVoiceLine) {
+            queueSpeechLine(roundVoiceLine, {
+              priority: true,
+              ttlMs: TURN_SPEECH_TTL_MS,
+            });
+          }
         }
       }
     }
@@ -1418,6 +1502,12 @@ export const createAppUi = (engine) => {
     }
     if (target.closest('[data-player-id="0"] .profile-shell')) {
       keys.push("hero-seat");
+    }
+    if (target.closest('.profile-role-badge[data-role="bb"]')) {
+      keys.push("bb-badge");
+    }
+    if (target.closest('.profile-role-badge[data-role="sb"]')) {
+      keys.push("sb-badge");
     }
     if (target.closest("#closeMenu")) {
       keys.push("close-menu");

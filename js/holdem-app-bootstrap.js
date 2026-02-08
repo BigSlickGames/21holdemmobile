@@ -1,4 +1,4 @@
-const APP_VERSION = "49";
+const APP_VERSION = "53";
 
 Promise.all([
   import(`./holdem-game-engine.js?v=${APP_VERSION}`),
